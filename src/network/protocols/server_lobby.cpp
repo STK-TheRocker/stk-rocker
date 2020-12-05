@@ -65,6 +65,7 @@
 #include <iomanip>
 #include <sstream>
 #include <iterator>
+#include <unistd.h>
 
 // We use max priority for all server requests to avoid downloading of addons
 // icons blocking the poll request in all-in-one graphical client server
@@ -1006,7 +1007,7 @@ void ServerLobby::handleChat(Event* event)
 void ServerLobby::changeTeam(Event* event)
 {
     if (!ServerConfig::m_team_choosing ||
-        !RaceManager::get()->teamEnabled())
+        !RaceManager::get()->teamEnabled() || ServerConfig::m_rank_soccer)
         return;
     if (!checkDataSize(event, 1)) return;
     NetworkString& data = event->data();
@@ -1733,7 +1734,7 @@ void ServerLobby::asynchronousUpdate()
                     updatePlayerList();
                 m_timeout.store(std::numeric_limits<int64_t>::max());
             }
-            if ((!ServerConfig::m_soccer_tournament && !ServerConfig::m_race_tournament &&
+            if ((!ServerConfig::m_soccer_tournament && !ServerConfig::m_race_tournament && !ServerConfig::m_rank_soccer &&
                 m_timeout.load() < (int64_t)StkTime::getMonoTimeMs()) ||
                 (checkPeersReady(true/*ignore_ai_peer*/) &&
                 (int)players >= ServerConfig::m_min_start_game_players))
@@ -2084,7 +2085,6 @@ void ServerLobby::liveJoinRequest(Event* event)
 {
     STKPeer* peer = event->getPeer();
     const NetworkString& data = event->data();
-
     if (!canLiveJoinNow())
     {
         rejectLiveJoin(peer, BLR_NO_GAME_FOR_LIVE_JOIN);
@@ -2168,7 +2168,8 @@ void ServerLobby::liveJoinRequest(Event* event)
 		// Reject live join if player limit is reached
 		bool queuePlayerLimitReached = m_player_queue_limit > 0 && red + blue + m_pending_live_joiners.size() > m_player_queue_limit;
 		if (is1vs1Player) queuePlayerLimitReached = false;
-        if (used_id.size() != peer->getPlayerProfiles().size() || queuePlayerLimitReached)
+	
+        if (used_id.size() != peer->getPlayerProfiles().size() || queuePlayerLimitReached || ServerConfig::m_rank_soccer)
         {
             for (unsigned i = 0; i < peer->getPlayerProfiles().size(); i++)
                 peer->getPlayerProfiles()[i]->setKartName("");
@@ -2649,6 +2650,18 @@ void ServerLobby::update(int ticks)
     case LOAD_WORLD:
         Log::info("ServerLobbyRoom", "Starting the race loading.");
         // This will create the world instance, i.e. load track and karts
+	        if (ServerConfig::m_rank_soccer)
+		{
+		    int warten=0;
+		    while (m_wait4discon && warten<20)
+		    {
+		        usleep(2000);
+			warten+=2;
+		    }
+	            std::string singdrossel = "python3 current_ranked-soccer_players.py \"" + m_soccer_ranked_players + "\" \""+ m_soccer_ranked_elos + "\" &";
+                    system(singdrossel.c_str());
+                    Log::info("ServerLobbyRoom", "Adding players succesfully done.");
+		}	
 		init1vs1Ranking();
 		if (m_player_queue_limit > 0)
 		{
@@ -2695,6 +2708,12 @@ void ServerLobby::update(int ticks)
         {
             system("python3 update_elo.py 1vs1_3 &");
         }
+	if (ServerConfig::m_rank_soccer)
+        {
+            system("python3 update_elo_ranked-soccer.py ");
+            system("python3 update_wiki_ranked-soccer.py ");
+        }
+
         if (ServerConfig::m_save_goals)
         {
             if (ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3) system("python3 update_wiki.py 1vs1 &");
@@ -2707,6 +2726,11 @@ void ServerLobby::update(int ticks)
 			std::string singdrossel="python3 supertournament_gameresult.py "+redname+' '+bluename+" &";
             system(singdrossel.c_str());
         }
+	if (ServerConfig::m_rank_soccer)
+	{
+	    m_soccer_ranked_players="";
+	    m_soccer_ranked_elos="";
+	}
         Log::info("ServerLobby", "End of game message sent");
         break;
     case RESULT_DISPLAY:
@@ -2890,6 +2914,45 @@ void ServerLobby::unregisterServer(bool now, std::weak_ptr<ServerLobby> sl)
 /** Instructs all clients to start the kart selection. If event is NULL,
  *  the command comes from the owner less server.
  */
+std::pair<std::vector<std::string>, std::vector<std::string>> ServerLobby::createBalancedTeams(std::vector<std::pair<std::string, int>>& elo_players)
+{
+	int num_players = elo_players.size();
+	int min_elo_diff = INT_MAX;
+	int optimal_teams = -1;
+
+	for (int teams = 0; teams < pow(2, num_players-1); teams++)
+	{
+		int elo_red = 0, elo_blue = 0;
+		for (int player_idx = 0; player_idx < num_players; player_idx++)
+		{
+			if (teams & 1 << player_idx)
+				elo_red += elo_players[player_idx].second;
+			else
+				elo_blue += elo_players[player_idx].second;
+		}
+		int elo_diff = std::abs(elo_red - elo_blue);
+		if (elo_diff < min_elo_diff)
+		{
+			min_elo_diff = elo_diff;
+			optimal_teams = teams;
+		}
+		if (elo_diff == 0) break;
+	}
+
+	std::vector<std::string> red_team, blue_team;
+
+	for (int player_idx = 0; player_idx < num_players; player_idx++)
+	{
+		if (optimal_teams & 1 << player_idx)
+			red_team.push_back(elo_players[player_idx].first);
+		else
+			blue_team.push_back(elo_players[player_idx].first);
+	}
+	return std::pair<std::vector<std::string>, std::vector<std::string>>(red_team, blue_team);
+}
+		
+
+
 void ServerLobby::startSelection(const Event *event)
 {
     bool need_to_update = false;
@@ -2908,6 +2971,7 @@ void ServerLobby::startSelection(const Event *event)
             return;
         }
         auto peer = event->getPeerSP();
+
         if (ServerConfig::m_owner_less)
         {
             if (!m_allowed_to_start) {
@@ -2915,11 +2979,82 @@ void ServerLobby::startSelection(const Event *event)
                 sendStringToPeer(msg, peer);
                 return;
             }
-            if (!canRace(peer))
+            if (!canRace(peer) && !ServerConfig::m_rank_soccer)
             {
                 std::string msg = "You cannot play so pressing ready has no action";
                 sendStringToPeer(msg, peer);
                 return;
+            }
+	    if (ServerConfig::m_rank_soccer)
+	    {
+                peer->setAlwaysSpectate(false);
+                std::string peer_username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
+                std::ifstream in_file("soccer_ranking.txt");
+		std::string msg;
+		int elo=1500;
+                if (in_file.is_open())
+                {
+                    std::string line;
+		    auto split=StringUtils::split(peer_username, ' ');
+                    while (std::getline(in_file, line))
+                    {
+	                split = StringUtils::split(line, ' ');
+			if (split.size()<2) continue;
+			if (split[0]==peer_username)
+			{
+			    elo=std::stoi(split[1]);
+			}
+                    }
+                }
+                in_file.close();
+                sendStringToPeer(msg, peer);
+		auto players=StringUtils::split(m_soccer_ranked_players,' ');
+		for (int i2=0;i2<players.size();i2++)
+		{
+		    if (players[i2]==peer_username)
+	            {
+			m_peers_ready.at(event->getPeerSP()) = !m_peers_ready.at(event->getPeerSP());
+                        updatePlayerList();
+	                return;
+		    }
+		}
+		m_soccer_ranked_players= m_soccer_ranked_players + " " + peer_username;
+		m_soccer_ranked_elos= m_soccer_ranked_elos + " " + std::to_string(elo);
+                sendStringToPeer(msg, peer);
+		players=StringUtils::split(m_soccer_ranked_players,' ');
+		auto elos=StringUtils::split(m_soccer_ranked_elos,' ');
+                std::vector<std::pair<std::string, int>> elo_players;
+                sendStringToPeer(msg, peer);
+		for(int i=1;i<std::min(players.size(),elos.size());i++)
+		{
+                    sendStringToPeer(msg, peer);
+		    elo_players.push_back(std::pair<std::string, int>(players[i],std::stoi(elos[i])));
+		}
+
+                auto teams = createBalancedTeams(elo_players);
+                auto peers2 = STKHost::get()->getPeers();
+
+                std::string red_team = "";
+                for (auto &player : teams.first) red_team += player + " ";
+        	std::string blue_team = "";
+        	for (auto &player : teams.second) blue_team += player + " ";
+                msg = "Red Team:" + red_team+" Blue Team:"+ blue_team;
+                sendStringToPeer(msg, peer);
+
+                for (auto peer2 : peers2)
+                {
+                    for (auto player : peer2->getPlayerProfiles())
+                    {
+                        std::string username = std::string(StringUtils::wideToUtf8(player->getName()));
+                        if (std::find(teams.first.begin(), teams.first.end(), username) != teams.first.end())
+                            peer2->getPlayerProfiles()[0]->setTeam(KART_TEAM_RED);
+                        if (std::find(teams.second.begin(), teams.second.end(), username) != teams.second.end())
+                            peer2->getPlayerProfiles()[0]->setTeam(KART_TEAM_BLUE);
+                    }
+                }
+                m_peers_ready.at(event->getPeerSP()) = !m_peers_ready.at(event->getPeerSP());
+                updatePlayerList();
+		return;
             }
             else
             {
@@ -3196,7 +3331,7 @@ void ServerLobby::startSelection(const Event *event)
         {
             if (ServerConfig::m_soccer_tournament)
             {
-                m_default_vote->m_num_laps = 10;
+                m_default_vote->m_num_laps = 7;
                 m_default_vote->m_reverse = false;
             }
             else
@@ -3963,7 +4098,23 @@ void ServerLobby::clientDisconnected(Event* event)
         Log::info("ServerLobby", "%s disconnected", name.c_str());
         
 		m_pending_live_joiners.erase(std::remove(m_pending_live_joiners.begin(), m_pending_live_joiners.end(), name), m_pending_live_joiners.end());
-
+        if (ServerConfig::m_rank_soccer)
+        {
+	    auto players=StringUtils::split(m_soccer_ranked_players,' ');
+	    auto elos=StringUtils::split(m_soccer_ranked_elos,' ');
+	    m_soccer_ranked_players="";
+	    m_soccer_ranked_elos="";
+	    m_wait4discon=true;
+	    for (int i=1;i<players.size();i++)
+	    {
+                if (players[i]!=name)
+		{
+		    m_soccer_ranked_players=m_soccer_ranked_players + " " + players[i];
+		    m_soccer_ranked_elos=m_soccer_ranked_elos + " " + elos[i];
+		}
+	    }
+	    m_wait4discon=false;
+	}
         if (RaceEventManager::get())
         {
             if (ServerConfig::m_save_goals && RaceEventManager::get()->isRunning())
@@ -4572,7 +4723,7 @@ void ServerLobby::handleUnencryptedConnection(std::shared_ptr<STKPeer> peer,
 			 default_kart_color, i == 0 ? online_id : 0,
 			 handicap, (uint8_t)i, KART_TEAM_NONE,
 			 country_code);
-        if (ServerConfig::m_team_choosing && !ServerConfig::m_soccer_tournament)
+        if ((ServerConfig::m_team_choosing && !ServerConfig::m_soccer_tournament))
         {
             KartTeam cur_team = KART_TEAM_NONE;
             if (red_blue.first > red_blue.second)
@@ -4600,6 +4751,10 @@ void ServerLobby::handleUnencryptedConnection(std::shared_ptr<STKPeer> peer,
                     player->setTeam(KART_TEAM_BLUE);
             }
         }
+	if (ServerConfig::m_soccer_tournament)
+	{
+	    player->setTeam(KART_TEAM_NONE);
+	}
         peer->addPlayer(player);
     }
 
@@ -4805,7 +4960,7 @@ void ServerLobby::updatePlayerList(bool update_when_reset_server)
 
     if (update_when_reset_server)
     {
-        if (!ServerConfig::m_soccer_tournament && !ServerConfig::m_race_tournament)
+        if (!ServerConfig::m_soccer_tournament && !ServerConfig::m_race_tournament && !ServerConfig::m_rank_soccer)
         {
             for (auto& peer : m_default_always_spectate_peers)
                 peer->setAlwaysSpectate(true);
@@ -5412,11 +5567,14 @@ void ServerLobby::finishedLoadingWorldClient(Event *event)
         std::string username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
         add_gamescore2(username);
     }
-    if (ServerConfig::m_super_tournament && ServerConfig::m_count_supertournament_game)
+    bool super= ServerConfig::m_super_tournament && ServerConfig::m_count_supertournament_game;
+    if ( super || ServerConfig::m_rank_soccer)
     {
         std::string username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
-        std::string redname=ServerConfig::m_red_team_name;
-        std::string bluename=ServerConfig::m_blue_team_name;
+	std::string redname;
+	std::string bluename;
+        if(super) redname=ServerConfig::m_red_team_name;
+        if(super) bluename=ServerConfig::m_blue_team_name;
 
         // Adding the current players to the database
         if (peer->hasPlayerProfiles())
@@ -5426,10 +5584,12 @@ void ServerLobby::finishedLoadingWorldClient(Event *event)
             switch (peer->getPlayerProfiles()[0]->getTeam())
             {
                     case KART_TEAM_RED:
-                            singdrossel = "python3 supertournament_addcurrentplayer.py " + username + " " + redname + " &";
+                            if (super) singdrossel = "python3 supertournament_addcurrentplayer.py " + username + " " + redname + " &";
+                            if (ServerConfig::m_rank_soccer) singdrossel = "python3 add_ranked-soccer_team.py " + username + " red"+" &";
                             break;
                     case KART_TEAM_BLUE:
-                            singdrossel = "python3 supertournament_addcurrentplayer.py " + username + " " + bluename + " &";
+                            if(super) singdrossel = "python3 supertournament_addcurrentplayer.py " + username + " " + bluename + " &";
+                            if (ServerConfig::m_rank_soccer) singdrossel = "python3 add_ranked-soccer_team.py " + username + " blue"+" &";
                             break;
                     default:
                             break;

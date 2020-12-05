@@ -115,6 +115,12 @@ private:
     bool m_ip_geolocation_table_exists;
 
     bool m_ipv6_geolocation_table_exists;
+    
+    std::string m_soccer_ranked_elos="";
+
+    std::string m_soccer_ranked_players="";
+
+    bool m_wait4discon=false;
 
     uint64_t m_last_poll_db_time;
 
@@ -549,6 +555,7 @@ public:
     virtual void update(int ticks) OVERRIDE;
     virtual void asynchronousUpdate() OVERRIDE;
 
+    std::pair<std::vector<std::string>, std::vector<std::string>> createBalancedTeams(std::vector<std::pair<std::string, int>>& elo_players);
     void startSelection(const Event *event=NULL);
     void checkIncomingConnectionRequests();
     void finishedLoadingWorld() OVERRIDE;

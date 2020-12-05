@@ -128,6 +128,10 @@ namespace ServerConfig
         SERVER_CFG_DEFAULT(BoolServerConfigParam(false, "rank-3vs3",
         "Set up for advanced 3vs3-ranking options."));
 
+    SERVER_CFG_PREFIX BoolServerConfigParam m_rank_soccer
+        SERVER_CFG_DEFAULT(BoolServerConfigParam(false, "rank-soccer",
+        "Set up for advanced soccer-ranking options."));
+
     SERVER_CFG_PREFIX IntServerConfigParam m_server_port
         SERVER_CFG_DEFAULT(IntServerConfigParam(0, "server-port",
         "Port used in server, if you specify 0, it will use the server port "
@@ -179,6 +183,26 @@ namespace ServerConfig
         SERVER_CFG_DEFAULT(StringServerConfigParam("",
         "motd", "Message of today shown in lobby, you can enter here "
         "encoded XML words or a .txt file and let STK load it."));
+
+    SERVER_CFG_PREFIX StringServerConfigParam m_ranked_teams_red
+        SERVER_CFG_DEFAULT(StringServerConfigParam(" ",
+        "ranked-teams-red", "Ranked Teams"
+        "Ranked Teams"));
+
+    SERVER_CFG_PREFIX StringServerConfigParam m_ranked_teams_red_elo
+        SERVER_CFG_DEFAULT(StringServerConfigParam(" ",
+        "ranked-elos-red", "Ranked Elos"
+        "Ranked Elos"));
+    
+    SERVER_CFG_PREFIX StringServerConfigParam m_ranked_teams_blue
+        SERVER_CFG_DEFAULT(StringServerConfigParam(" ",
+        "ranked-teams-blue", "Ranked Teams"
+        "Ranked Teams"));
+
+    SERVER_CFG_PREFIX StringServerConfigParam m_ranked_teams_blue_elo
+        SERVER_CFG_DEFAULT(StringServerConfigParam(" ",
+        "ranked-elos-blue", "Ranked Elos"
+        "Ranked Elos"));
 
     SERVER_CFG_PREFIX StringServerConfigParam m_help
         SERVER_CFG_DEFAULT(StringServerConfigParam("",

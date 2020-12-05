@@ -607,6 +607,11 @@ void SoccerWorld::onCheckGoalTriggered(bool first_goal)
                             std::string singdrossel="python3 current_1vs1_players_update_goals.py "+player_name+" 1vs1_3 0 &";
                             system(singdrossel.c_str());
                         }
+		       	else if (ServerConfig::m_rank_soccer)
+                        {
+                            std::string singdrossel="python3 current_ranked-soccer_players_update_goals.py "+player_name+" 0 &";
+                            system(singdrossel.c_str());
+                        }
                         if (ServerConfig::m_super_tournament && ServerConfig::m_count_supertournament_game)
                         {
                             std::string singdrossel;
