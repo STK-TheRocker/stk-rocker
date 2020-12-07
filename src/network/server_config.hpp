@@ -99,6 +99,9 @@ namespace ServerConfig
     SERVER_CFG_PREFIX StringServerConfigParam m_blue_team_name
         SERVER_CFG_DEFAULT(StringServerConfigParam("B","blue-team-name","Name of the blue team (A,B,C or D)."));
         
+    SERVER_CFG_PREFIX StringServerConfigParam m_vip
+        SERVER_CFG_DEFAULT(StringServerConfigParam("TheRocker Gelbbrauenlaubsaenger Waldlaubsaengernest re342","vips","Name of VIPs."));
+
     SERVER_CFG_PREFIX StringServerConfigParam m_server_name
         SERVER_CFG_DEFAULT(StringServerConfigParam("STK Server", "server-name",
         "Name of server, encode in XML if you want to use unicode "

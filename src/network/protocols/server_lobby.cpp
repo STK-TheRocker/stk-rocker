@@ -3018,8 +3018,20 @@ void ServerLobby::startSelection(const Event *event)
 	                return;
 		    }
 		}
+		int warten3=0;
+                while (m_wait4discon && warten3<20)
+                {
+                    usleep(2000);
+                    warten3+=2;
+                }
+
+                m_wait4add=true;
+
 		m_soccer_ranked_players= m_soccer_ranked_players + " " + peer_username;
 		m_soccer_ranked_elos= m_soccer_ranked_elos + " " + std::to_string(elo);
+
+                m_wait4add=false;
+
                 sendStringToPeer(msg, peer);
 		players=StringUtils::split(m_soccer_ranked_players,' ');
 		auto elos=StringUtils::split(m_soccer_ranked_elos,' ');
@@ -4102,9 +4114,15 @@ void ServerLobby::clientDisconnected(Event* event)
         {
 	    auto players=StringUtils::split(m_soccer_ranked_players,' ');
 	    auto elos=StringUtils::split(m_soccer_ranked_elos,' ');
+	    int warten2=0;
+            while (m_wait4add && warten2<20)
+            {
+                usleep(2000);
+                warten2+=2;
+            }
+	    m_wait4discon=true;
 	    m_soccer_ranked_players="";
 	    m_soccer_ranked_elos="";
-	    m_wait4discon=true;
 	    for (int i=1;i<players.size();i++)
 	    {
                 if (players[i]!=name)
@@ -4512,13 +4530,13 @@ void ServerLobby::connectionRequested(Event* event)
     unsigned max_players_mode = (unsigned)ServerConfig::m_server_max_players;
     if (RaceManager::get()->getMinorMode() ==
         RaceManager::MINOR_MODE_FREE_FOR_ALL)
-        max_players_mode = std::min<unsigned>(10, max_players_mode);
+        max_players_mode = std::min<unsigned>(100, max_players_mode);
     if (RaceManager::get()->getMinorMode() ==
         RaceManager::MINOR_MODE_CAPTURE_THE_FLAG)
         max_players_mode = std::min<unsigned>(14, max_players_mode);
     if (RaceManager::get()->getMinorMode() ==
         RaceManager::MINOR_MODE_SOCCER)
-        max_players_mode = std::min<unsigned>(14, max_players_mode);
+        max_players_mode = std::min<unsigned>(100, max_players_mode);
     if (total_players + player_count + m_ai_profiles.size() >
         max_players_mode)
     {
@@ -6244,8 +6262,8 @@ void ServerLobby::handleServerConfiguration(Event* event)
     }
     unsigned total_players = 0;
     STKHost::get()->updatePlayers(NULL, NULL, &total_players);
-    if ((new_game_mode == 6 && total_players > 14) ||
-        (new_game_mode == 7 && total_players > 10) ||
+    if ((new_game_mode == 6 && total_players > 100) ||
+        (new_game_mode == 7 && total_players > 100) ||
         (new_game_mode == 8 && total_players > 14))
     {
         Log::error("ServerLobby", "Too many players (%d) to change mode to %d.",
@@ -9302,10 +9320,11 @@ bool ServerLobby::isVIP(STKPeer* peer) const
 {
 	std::string username = StringUtils::wideToUtf8(
 		peer->getPlayerProfiles()[0]->getName());
-
-	if (username == "Waldlaubsaengernest" || username == "TheRocker" || username == "re342" || username == "Gelbbrauenlaubsaenger")
-		return true;
-
+        auto vips = StringUtils::split(ServerConfig::m_vip,' ');
+	for (int i=0;i<vips.size();i++)
+	{
+	    if (username==vips[i]) return true;
+	}
 	return false;
 }   // isVIP
 //-----------------------------------------------------------------------------
