@@ -3018,19 +3018,19 @@ void ServerLobby::startSelection(const Event *event)
 	                return;
 		    }
 		}
-		int warten3=0;
-                while (m_wait4discon && warten3<20)
-                {
-                    usleep(2000);
-                    warten3+=2;
-                }
+		//int warten3=0;
+                //while (m_wait4discon && warten3<20)
+                //{
+                //    usleep(2000);
+                //    warten3+=2;
+                //}
 
-                m_wait4add=true;
+                //m_wait4add=true;
 
 		m_soccer_ranked_players= m_soccer_ranked_players + " " + peer_username;
 		m_soccer_ranked_elos= m_soccer_ranked_elos + " " + std::to_string(elo);
 
-                m_wait4add=false;
+                //m_wait4add=false;
 
                 sendStringToPeer(msg, peer);
 		players=StringUtils::split(m_soccer_ranked_players,' ');
@@ -4110,29 +4110,29 @@ void ServerLobby::clientDisconnected(Event* event)
         Log::info("ServerLobby", "%s disconnected", name.c_str());
         
 		m_pending_live_joiners.erase(std::remove(m_pending_live_joiners.begin(), m_pending_live_joiners.end(), name), m_pending_live_joiners.end());
-        if (ServerConfig::m_rank_soccer)
-        {
-	    auto players=StringUtils::split(m_soccer_ranked_players,' ');
-	    auto elos=StringUtils::split(m_soccer_ranked_elos,' ');
-	    int warten2=0;
-            while (m_wait4add && warten2<20)
-            {
-                usleep(2000);
-                warten2+=2;
-            }
-	    m_wait4discon=true;
-	    m_soccer_ranked_players="";
-	    m_soccer_ranked_elos="";
-	    for (int i=1;i<players.size();i++)
-	    {
-                if (players[i]!=name)
-		{
-		    m_soccer_ranked_players=m_soccer_ranked_players + " " + players[i];
-		    m_soccer_ranked_elos=m_soccer_ranked_elos + " " + elos[i];
-		}
-	    }
-	    m_wait4discon=false;
-	}
+    //    if (ServerConfig::m_rank_soccer)
+  //      {
+	    //auto players=StringUtils::split(m_soccer_ranked_players,' ');
+	    //auto elos=StringUtils::split(m_soccer_ranked_elos,' ');
+	    //int warten2=0;
+            //while (m_wait4add && warten2<20)
+            //{
+            //    usleep(2000);
+            //    warten2+=2;
+            //}
+	    //m_wait4discon=true;
+	    //m_soccer_ranked_players="";
+	    //m_soccer_ranked_elos="";
+	    //for (int i=1;i<players.size();i++)
+	    //{
+            //    if (players[i]!=name)
+	//	{
+	//	    m_soccer_ranked_players=m_soccer_ranked_players + " " + players[i];
+//		    m_soccer_ranked_elos=m_soccer_ranked_elos + " " + elos[i];
+//		}
+//	    }
+//	    m_wait4discon=false;
+//	}
         if (RaceEventManager::get())
         {
             if (ServerConfig::m_save_goals && RaceEventManager::get()->isRunning())
@@ -7710,7 +7710,33 @@ void ServerLobby::handleServerCommand(Event* event,
 #endif
         sendStringToPeer(msg, peer);
     }
-#endif
+#endif  
+
+        if (argv[0] == "laps")
+	{   
+	    std::string msg;
+            if (hasHostRights(peer))
+            {
+	        if (argv.size() != 2)
+	        {
+	            msg= "Format: /laps [number of laps]";
+                    sendStringToPeer(msg, peer);
+		    return;
+	        }
+                bool ok=false;
+	        if (std::stoi(argv[1]) > -2) ok=true;
+	        if (!ok) return;
+                m_fixed_lap=std::stoi(argv[1]);
+	        msg= "Number of laps succesfully set to "+argv[1];
+                sendStringToPeer(msg, peer);
+	    }
+	    else
+	    {
+	        msg= "You cannot use this command.";
+                sendStringToPeer(msg, peer);
+	    }
+	}
+
 	if (argv[0] == "setfield" || argv[0] == "settrack")
 	{
 		bool isField = (argv[0] == "setfield");
