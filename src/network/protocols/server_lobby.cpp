@@ -65,7 +65,6 @@
 #include <iomanip>
 #include <sstream>
 #include <iterator>
-#include <unistd.h>
 
 // We use max priority for all server requests to avoid downloading of addons
 // icons blocking the poll request in all-in-one graphical client server
@@ -2650,17 +2649,11 @@ void ServerLobby::update(int ticks)
     case LOAD_WORLD:
         Log::info("ServerLobbyRoom", "Starting the race loading.");
         // This will create the world instance, i.e. load track and karts
-	        if (ServerConfig::m_rank_soccer)
+        if (ServerConfig::m_rank_soccer)
 		{
-		    int warten=0;
-		    while (m_wait4discon && warten<20)
-		    {
-		        usleep(2000);
-			warten+=2;
-		    }
-	            std::string singdrossel = "python3 current_ranked-soccer_players.py \"" + m_soccer_ranked_players + "\" \""+ m_soccer_ranked_elos + "\" &";
-                    system(singdrossel.c_str());
-                    Log::info("ServerLobbyRoom", "Adding players succesfully done.");
+            std::string singdrossel = "python3 current_ranked-soccer_players.py \"" + m_soccer_ranked_players + "\" \""+ m_soccer_ranked_elos + "\" &";
+            system(singdrossel.c_str());
+            Log::info("ServerLobbyRoom", "Adding players succesfully done.");
 		}	
 		init1vs1Ranking();
 		if (m_player_queue_limit > 0)
@@ -4110,29 +4103,7 @@ void ServerLobby::clientDisconnected(Event* event)
         Log::info("ServerLobby", "%s disconnected", name.c_str());
         
 		m_pending_live_joiners.erase(std::remove(m_pending_live_joiners.begin(), m_pending_live_joiners.end(), name), m_pending_live_joiners.end());
-    //    if (ServerConfig::m_rank_soccer)
-  //      {
-	    //auto players=StringUtils::split(m_soccer_ranked_players,' ');
-	    //auto elos=StringUtils::split(m_soccer_ranked_elos,' ');
-	    //int warten2=0;
-            //while (m_wait4add && warten2<20)
-            //{
-            //    usleep(2000);
-            //    warten2+=2;
-            //}
-	    //m_wait4discon=true;
-	    //m_soccer_ranked_players="";
-	    //m_soccer_ranked_elos="";
-	    //for (int i=1;i<players.size();i++)
-	    //{
-            //    if (players[i]!=name)
-	//	{
-	//	    m_soccer_ranked_players=m_soccer_ranked_players + " " + players[i];
-//		    m_soccer_ranked_elos=m_soccer_ranked_elos + " " + elos[i];
-//		}
-//	    }
-//	    m_wait4discon=false;
-//	}
+		
         if (RaceEventManager::get())
         {
             if (ServerConfig::m_save_goals && RaceEventManager::get()->isRunning())

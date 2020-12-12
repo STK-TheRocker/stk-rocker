@@ -120,10 +120,6 @@ private:
 
     std::string m_soccer_ranked_players="";
 
-    bool m_wait4discon=false;
-    
-    bool m_wait4add=false;
-
     uint64_t m_last_poll_db_time;
 
     void pollDatabase();

@@ -85,3 +85,4 @@ lib/harfbuzz
 lib/sdl2
 
 .DS_Store
+.vs/
