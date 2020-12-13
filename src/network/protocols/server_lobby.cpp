@@ -2649,12 +2649,6 @@ void ServerLobby::update(int ticks)
     case LOAD_WORLD:
         Log::info("ServerLobbyRoom", "Starting the race loading.");
         // This will create the world instance, i.e. load track and karts
-        if (ServerConfig::m_rank_soccer)
-		{
-            std::string singdrossel = "python3 current_ranked-soccer_players.py \"" + m_soccer_ranked_players + "\" \""+ m_soccer_ranked_elos + "\" &";
-            system(singdrossel.c_str());
-            Log::info("ServerLobbyRoom", "Adding players succesfully done.");
-		}	
 		init1vs1Ranking();
 		if (m_player_queue_limit > 0)
 		{
@@ -2980,6 +2974,7 @@ void ServerLobby::startSelection(const Event *event)
             }
 	    if (ServerConfig::m_rank_soccer)
 	    {
+		system("cp empty_rsp.txt current_ranked-soccer_players.txt");
                 peer->setAlwaysSpectate(false);
                 std::string peer_username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
                 std::ifstream in_file("soccer_ranking.txt");
@@ -5574,11 +5569,11 @@ void ServerLobby::finishedLoadingWorldClient(Event *event)
             {
                     case KART_TEAM_RED:
                             if (super) singdrossel = "python3 supertournament_addcurrentplayer.py " + username + " " + redname + " &";
-                            if (ServerConfig::m_rank_soccer) singdrossel = "python3 add_ranked-soccer_team.py " + username + " red"+" &";
+                            if (ServerConfig::m_rank_soccer) singdrossel = "python3 add_ranked-soccer_player.py " + username + " red"+" &";
                             break;
                     case KART_TEAM_BLUE:
                             if(super) singdrossel = "python3 supertournament_addcurrentplayer.py " + username + " " + bluename + " &";
-                            if (ServerConfig::m_rank_soccer) singdrossel = "python3 add_ranked-soccer_team.py " + username + " blue"+" &";
+                            if (ServerConfig::m_rank_soccer) singdrossel = "python3 add_ranked-soccer_player.py " + username + " blue"+" &";
                             break;
                     default:
                             break;
