@@ -20,6 +20,7 @@
 #define SERVER_LOBBY_HPP
 
 #include "network/protocols/lobby_protocol.hpp"
+#include "network/tournament/qualification.hpp"
 #include "utils/cpp2011.hpp"
 #include "utils/time.hpp"
 #include "utils/track_filter.hpp"
@@ -337,6 +338,8 @@ private:
     std::vector<std::string> m_tournament_arenas;
 
     std::vector<TrackFilter> m_tournament_track_filters;
+
+    SuperTournamentQualification m_super_tourn_quali;
 
     TrackFilter m_global_filter;
 

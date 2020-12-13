@@ -173,15 +173,16 @@ sqlite3_extension_init(sqlite3* db, char** pzErrMsg,
  */
 ServerLobby::ServerLobby() : LobbyProtocol()
 {
-	//ServerConfig::m_race_tournament = true;
+	//ServerConfig::m_race_tournament = false;
+    //ServerConfig::m_super_tournament_qualification = true;
 	//ServerConfig::m_race_tournament_players = "P TheRocker Waldlaubsaengernest FabianF Samurai-Goroh108 Hyper-E J re342 Gelbbrauenlaubsaenger";
 	//ServerConfig::m_owner_less = true;
 	//ServerConfig::m_min_start_game_players = 1;
-	//ServerConfig::m_server_configurable = true;
+	//ServerConfig::m_server_configurable = false;
 	//ServerConfig::m_start_game_counter = 180;
-	//ServerConfig::m_player_queue_limit = 2;
-	//ServerConfig::m_team_choosing = true;
-	//ServerConfig::m_rank_1vs1 = true;
+	//ServerConfig::m_player_queue_limit = -1;
+	//ServerConfig::m_team_choosing = false;
+	//ServerConfig::m_rank_1vs1 = false;
 
     m_client_server_host_id.store(0);
     m_lobby_players.store(0);
@@ -268,6 +269,11 @@ ServerLobby::ServerLobby() : LobbyProtocol()
 		initRaceTournamentPlayers();
 		m_tournament_game = 0;
 	}
+    if (ServerConfig::m_super_tournament_qualification)
+    {
+        std::string quali_players = ServerConfig::m_super_tournament_qualification_players; // "player1 player2 player3 ..."
+        m_super_tourn_quali = SuperTournamentQualification(quali_players);
+    }
     m_allowed_to_start = true;
     loadTracksQueueFromConfig();
     loadCustomScoring();
@@ -2701,7 +2707,7 @@ void ServerLobby::update(int ticks)
         {
             system("python3 update_elo.py 1vs1_3 &");
         }
-	if (ServerConfig::m_rank_soccer)
+        if (ServerConfig::m_rank_soccer)
         {
             system("python3 update_elo_ranked-soccer.py ");
             system("python3 update_wiki_ranked-soccer.py ");
@@ -2719,11 +2725,11 @@ void ServerLobby::update(int ticks)
 			std::string singdrossel="python3 supertournament_gameresult.py "+redname+' '+bluename+" &";
             system(singdrossel.c_str());
         }
-	if (ServerConfig::m_rank_soccer)
-	{
-	    m_soccer_ranked_players="";
-	    m_soccer_ranked_elos="";
-	}
+        if (ServerConfig::m_rank_soccer)
+        {
+            m_soccer_ranked_players="";
+            m_soccer_ranked_elos="";
+        }
         Log::info("ServerLobby", "End of game message sent");
         break;
     case RESULT_DISPLAY:
@@ -3688,15 +3694,27 @@ void ServerLobby::checkRaceFinished()
     assert(World::getWorld());
     if (!RaceEventManager::get()->isRaceOver()) return;
 
-    if (ServerConfig::m_soccer_tournament)
+    if (ServerConfig::m_soccer_tournament || ServerConfig::m_super_tournament_qualification)
     {
         World* w = World::getWorld();
         if (w)
         {
             SoccerWorld *sw = dynamic_cast<SoccerWorld*>(w);
-            sw->tellCountIfDiffers();
+
+            if (ServerConfig::m_soccer_tournament)
+            {
+                sw->tellCountIfDiffers();
+            }
+            
+            if (ServerConfig::m_super_tournament_qualification)
+            {
+                int red_goals = sw->getScore(KART_TEAM_RED);
+                int blue_goals = sw->getScore(KART_TEAM_BLUE);
+                m_super_tourn_quali.updateElos(red_goals, blue_goals);
+            }
         }
     }
+
     Log::info("ServerLobby", "The game is considered finished.");
     // notify the network world that it is stopped
     RaceEventManager::get()->stop();
@@ -4712,7 +4730,7 @@ void ServerLobby::handleUnencryptedConnection(std::shared_ptr<STKPeer> peer,
 			 default_kart_color, i == 0 ? online_id : 0,
 			 handicap, (uint8_t)i, KART_TEAM_NONE,
 			 country_code);
-        if ((ServerConfig::m_team_choosing && !ServerConfig::m_soccer_tournament))
+        if ((ServerConfig::m_team_choosing && !ServerConfig::m_soccer_tournament && !ServerConfig::m_super_tournament_qualification))
         {
             KartTeam cur_team = KART_TEAM_NONE;
             if (red_blue.first > red_blue.second)
@@ -4727,7 +4745,8 @@ void ServerLobby::handleUnencryptedConnection(std::shared_ptr<STKPeer> peer,
             }
             player->setTeam(cur_team);
         }
-        if (ServerConfig::m_soccer_tournament) {
+        if (ServerConfig::m_soccer_tournament) 
+        {
             if (m_tournament_red_players.count(utf8_online_name)) 
                 player->setTeam(KART_TEAM_RED);
             else if (m_tournament_blue_players.count(utf8_online_name))
@@ -4740,10 +4759,6 @@ void ServerLobby::handleUnencryptedConnection(std::shared_ptr<STKPeer> peer,
                     player->setTeam(KART_TEAM_BLUE);
             }
         }
-	if (ServerConfig::m_soccer_tournament)
-	{
-	    player->setTeam(KART_TEAM_NONE);
-	}
         peer->addPlayer(player);
     }
 
@@ -9203,7 +9218,11 @@ bool ServerLobby::canRace(STKPeer* peer) const
 		if (hasGnuKart == false) return false;
 	}
 
-    if (ServerConfig::m_soccer_tournament)
+    if (ServerConfig::m_super_tournament_qualification)
+    {
+        return m_super_tourn_quali.canPlay(username);
+    }
+    else if (ServerConfig::m_soccer_tournament)
     {
         return m_tournament_red_players.count(username) > 0 || 
             m_tournament_blue_players.count(username) > 0;
