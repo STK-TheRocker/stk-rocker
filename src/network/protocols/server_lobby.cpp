@@ -3292,7 +3292,8 @@ void ServerLobby::startSelection(const Event *event)
 		if (m_game_mode == 6) // soccer
 			m_available_kts.second.insert("icy_soccer_field");
 		else if (m_game_mode == 7 || m_game_mode == 8) // free for all, capture the flag
-			m_available_kts.second.insert("stadium");
+			m_available_kts.second.insert("addon_devastation-island");
+		        //else m_available_kts.second.insert("stadium");
 		else
 			m_available_kts.second.insert("volcano_island"); // race
 
