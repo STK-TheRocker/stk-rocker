@@ -43,17 +43,45 @@ int SuperTournamentQualification::getListIndex(std::string player_name) const
         return std::distance(m_player_list.begin(), it);
 }
 
+/*
+void SuperTournamentQualification::updateKartTeams()
+{
+    auto peers = STKHost::get()->getPeers();
+    for (auto peer : peers)
+    {
+        for (auto player : peer->getPlayerProfiles())
+        {
+            std::string player_name = StringUtils::wideToUtf8(player->getName());
+            player->setTeam(getKartTeam(player_name));
+        }
+    }
+}
+*/
+
 void SuperTournamentQualification::addPlayer(std::string player_name, int elo)
 {
-    if (std::find(m_player_list.begin(), m_player_list.end(), player_name) != m_player_list.end())
+    if (std::find(m_player_list.begin(), m_player_list.end(), player_name) == m_player_list.end())
         m_player_list.push_back(player_name);
     m_player_elos[player_name] = elo;
 }
 
 void SuperTournamentQualification::removePlayer(std::string player_name)
 {
+    int player_idx = getListIndex(player_name);
+    if (player_idx == -1) return;
+
     m_player_list.erase(m_player_list.begin() + getListIndex(player_name));
     m_player_elos.erase(player_name);
+}
+
+void SuperTournamentQualification::replacePlayer(std::string player_current, std::string player_new, int elo_new)
+{
+    int player_idx = getListIndex(player_current);
+    if (player_idx == -1) return;
+
+    m_player_list[player_idx] = player_new;
+    m_player_elos.erase(player_current);
+    m_player_elos[player_new] = elo_new;
 }
 
 bool SuperTournamentQualification::canPlay(std::string player_name) const
@@ -65,11 +93,14 @@ void SuperTournamentQualification::nextMatch()
 {
     int num_matches = m_player_list.size() / 2;
     m_match_index = (m_match_index + 1) % std::max(num_matches, 1);
+    //updateKartTeams();
 }
 
 void SuperTournamentQualification::setMatch(int match_id)
 {
-    m_match_index = match_id;
+    int num_matches = m_player_list.size() / 2;
+    m_match_index = match_id % std::max(num_matches, 1);
+    //updateKartTeams();
 }
 
 int SuperTournamentQualification::getMatchId(std::string player_name) const
@@ -90,7 +121,7 @@ void SuperTournamentQualification::closeMatch()
 
 KartTeam SuperTournamentQualification::getKartTeam(std::string player_name) const
 {
-    if (canPlay(player_name))
+    if (getMatchId(player_name) == m_match_index)
     {
         int listIndex = getListIndex(player_name);
         if (listIndex % 2 == 0)
@@ -130,4 +161,16 @@ void SuperTournamentQualification::readElosFromFile()
 
     //std::string player_name = "TheRocker";
     //m_player_elos[player_name] = 1900;
+}
+
+void SuperTournamentQualification::sortPlayersByElo()
+{
+    m_match_index = 0; // after sorting the elos, the teams change
+
+    auto sort_rule = [this](std::string const player1, std::string const player2) -> bool
+    {
+        return getElo(player1) > getElo(player2);
+    };
+    
+    std::sort(m_player_list.begin(), m_player_list.end(), sort_rule);
 }

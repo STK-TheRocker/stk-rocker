@@ -20,6 +20,9 @@
 #define QUALIFICATION_HPP
 
 #include "network/remote_kart_info.hpp"
+#include "network/stk_host.hpp"
+#include "network/stk_peer.hpp"
+#include "network/network_player_profile.hpp"
 #include "utils/cpp2011.hpp"
 #include "utils/string_utils.hpp"
 #include "utils/log.hpp"
@@ -38,7 +41,8 @@ private:
     bool m_match_opened = false; // players can press ready if match is opened
 
     int getListIndex(std::string player_name) const;
-
+    //void updateKartTeams();
+    
 public:
     SuperTournamentQualification();
     SuperTournamentQualification(std::string config_player_list); // config_player_list = "player1 player2 player3 ..."
@@ -47,6 +51,7 @@ public:
     const std::vector<std::string>& getPlayerList() const { return m_player_list; }
     void addPlayer(std::string player_name, int elo);
     void removePlayer(std::string player_name);
+    void replacePlayer(std::string player_current, std::string player_new, int elo_new);
     bool canPlay(std::string player_name) const;
 
     void nextMatch();
@@ -60,6 +65,7 @@ public:
     int getElo(std::string player_name) const;
     void updateElos(int red_goals, int blue_goals);
     void readElosFromFile();
+    void sortPlayersByElo();
 };
 
 

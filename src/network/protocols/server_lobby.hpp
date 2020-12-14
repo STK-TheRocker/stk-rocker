@@ -507,6 +507,7 @@ private:
     void initTournamentPlayers();
     void initRaceTournamentPlayers();
     void changeColors();
+    void superTournamentQualiUpdateKartTeams();
     void sendStringToPeer(std::string& s, std::shared_ptr<STKPeer>& peer) const;
     void sendStringToAllPeers(std::string& s);
     bool canRace(std::shared_ptr<STKPeer>& peer) const;
