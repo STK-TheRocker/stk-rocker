@@ -2661,8 +2661,6 @@ void ServerLobby::update(int ticks)
             system(singdrossel.c_str());
             Log::info("ServerLobbyRoom", "Adding players succesfully done.");
 		}
-        if (ServerConfig::m_super_tournament_qualification)
-            m_super_tourn_quali.closeMatch();
 		init1vs1Ranking();
 		if (m_player_queue_limit > 0)
 		{
@@ -8207,43 +8205,69 @@ void ServerLobby::handleServerCommand(Event* event,
 
                 m_super_tourn_quali.readElosFromFile();
                 m_super_tourn_quali.sortPlayersByElo();
+                superTournamentQualiUpdateKartTeams();
 
                 std::string msg = "New teams created.";
                 sendStringToPeer(msg, peer);
             }
             else if (argv[1] == "next")
             {
-                m_super_tourn_quali.nextMatch();
-                superTournamentQualiUpdateKartTeams();
-
-                std::string msg = "Next match is set.";
-                sendStringToPeer(msg, peer);
-            }
-            else if (argv[1] == "match")
-            {
-                if (argv.size() != 3)
+                if (argv.size() != 2)
                 {
-                    std::string msg = "Format: /quali match {[match_letter], [match_index]}";
+                    std::string msg = "Format: /quali next";
                     sendStringToPeer(msg, peer);
                     return;
                 }
+
+                // Give a kart team to the players of the next match
+                m_super_tourn_quali.nextMatch();
+                superTournamentQualiUpdateKartTeams();
+
+                std::string matchIdxStr = std::to_string(m_super_tourn_quali.getCurrentMatchId());
+                std::string msg1 = "Ready to start game " + matchIdxStr + " for " + std::to_string(m_fixed_lap) + " minutes.";
+                sendStringToAllPeers(msg1);
+
+                // Select a random field
+                setRandomField();
+            }
+            else if (argv[1] == "match")
+            {
+                if (argv.size() < 3 && argv.size() > 4)
+                {
+                    std::string msg = "Format: /quali match {[match_letter], [match_index]} [length]";
+                    sendStringToPeer(msg, peer);
+                    return;
+                }
+
+                // Update the game length if a value is set
+                if (argv.size() == 4)
+                {
+                    std::string length_string = argv[3];
+                    if (!length_string.empty() && std::all_of(length_string.begin(), length_string.end(), ::isdigit))
+                        m_fixed_lap = std::stoi(length_string);
+                }
+
+                // Give a kart team to the players of the next match
                 std::string matchIdxStr = argv[2];
-                std::string msg = "Match " + matchIdxStr + " is set.";
+                int matchIdx = -1;
                 if (matchIdxStr.length() == 1 && matchIdxStr[0] >= 'A' && matchIdxStr[0] <= 'Z') // /quali match A
+                    matchIdx = matchIdxStr[0] - 'A';
+                else if (!matchIdxStr.empty() && std::all_of(matchIdxStr.begin(), matchIdxStr.end(), ::isdigit)) // quali match 1
+                    matchIdx = std::stoi(matchIdxStr);
+                if (matchIdx == -1)
                 {
-                    m_super_tourn_quali.setMatch((int)(matchIdxStr[0] - 'A'));
-                    superTournamentQualiUpdateKartTeams();
+                    std::string msg = "The match index must be a positive number or a capital letter.";
+                    sendStringToPeer(msg, peer);
+                    return;
                 }
-                else if (!matchIdxStr.empty() && std::all_of(matchIdxStr.begin(), matchIdxStr.end(), ::isdigit))
-                {
-                    m_super_tourn_quali.setMatch(std::stoi(matchIdxStr));
-                    superTournamentQualiUpdateKartTeams();
-                }
-                else
-                {
-                    msg = "The match index must be a positive number or a capital letter.";
-                }
-                sendStringToPeer(msg, peer);
+                m_super_tourn_quali.setMatch(matchIdx);
+                superTournamentQualiUpdateKartTeams();
+
+                std::string msg1 = "Ready to start game " + matchIdxStr + " for " + std::to_string(m_fixed_lap) + " minutes.";
+                sendStringToAllPeers(msg1);
+
+                // Select a random field
+                setRandomField();
             }
             else if (argv[1] == "add")
             {
@@ -8301,63 +8325,8 @@ void ServerLobby::handleServerCommand(Event* event,
 
                 m_super_tourn_quali.replacePlayer(player_current, player_new, elo_new);
 
-                std::string msg = "Replaced player " + player_current + " by player " + player_new + " with elo " + std::to_string(elo_new);
+                std::string msg = "Player " + player_current + " is replaced by player " + player_new + " with elo " + std::to_string(elo_new);
                 sendStringToPeer(msg, peer);
-            }
-            else if (argv[1] == "game")
-            {
-                if (argv.size() > 3)
-                {
-                    std::string msg = "Format: /quali game [length]";
-                    sendStringToPeer(msg, peer);
-                    return;
-                }
-
-                if (argv.size() == 3)
-                {
-                    std::string length_string = argv[2];
-                    if (!length_string.empty() && std::all_of(length_string.begin(), length_string.end(), ::isdigit))
-                        m_fixed_lap = std::stoi(length_string);
-                }
-
-                std::string msg1 = "Ready to start game for " + std::to_string(m_fixed_lap) + " minutes.";
-                sendStringToAllPeers(msg1);
-
-                // Select a random field
-                std::srand(std::time(nullptr));
-                std::vector<std::string> available_fields;
-                int category = std::rand() % 5;
-                switch (category)
-                {
-                    case 0: // Icy
-                        m_set_field = "icy_soccer_field";
-                        break;
-                    case 1: // SuperTournament Field
-                        m_set_field = "addon_supertournament-field";
-                        break;
-                    case 2: // Soccer Field, Las Dunas or Tournament Field
-                        available_fields = std::vector<std::string>{ "soccer_field", "lasdunassoccer", "addon_tournament-field" };
-                        break;
-                    case 3: case 4: // Addons
-                        available_fields = std::vector<std::string>{ "addon_advanced-course", "addon_air-hockey", "addon_another-soccer-field",
-                                                                     "addon_asteroid-soccer", "addon_bizarre-darkness", "addon_box", "addon_cosmic",
-                                                                     "addon_database", "addon_egypt_1", "addon_experimental-plane---field-1",
-                                                                     "addon_experimental-plane---field-2", "addon_experimental-plane---field-3", "addon_forest_1",
-                                                                     "addon_hole-drop", "addon_inapit", "addon_math-class",
-                                                                     "addon_mountain-soccer--updated-", "addon_nitro-soccer-field", "addon_soccer-arena-x",
-                                                                     "addon_syncopia-stadium", "addon_vivid-vacuum", "addon_zen" };
-                        break;
-                }
-                if (category > 1 && available_fields.size() > 0)
-                {
-                    int selected_field = std::rand() % available_fields.size();
-                    m_set_field = available_fields[selected_field];
-                }
-
-                std::string msg2 = "Next played field will be " + m_set_field;
-                sendStringToAllPeers(msg2);
-
-                m_super_tourn_quali.openMatch();
             }
 
             updatePlayerList();
@@ -9341,6 +9310,42 @@ void ServerLobby::superTournamentQualiUpdateKartTeams()
             }
         }
     }
+}
+//-----------------------------------------------------------------------------
+void ServerLobby::setRandomField()
+{
+    std::srand(std::time(nullptr));
+    std::vector<std::string> available_fields;
+    int category = std::rand() % 5;
+    switch (category)
+    {
+        case 0: // Icy
+            m_set_field = "icy_soccer_field";
+            break;
+        case 1: // SuperTournament Field
+            m_set_field = "addon_supertournament-field";
+            break;
+        case 2: // Soccer Field, Las Dunas or Tournament Field
+            available_fields = std::vector<std::string>{ "soccer_field", "lasdunassoccer", "addon_tournament-field" };
+            break;
+        case 3: case 4: // Addons
+            available_fields = std::vector<std::string>{ "addon_advanced-course", "addon_air-hockey", "addon_another-soccer-field",
+                                                         "addon_asteroid-soccer", "addon_bizarre-darkness", "addon_box", "addon_cosmic",
+                                                         "addon_database", "addon_egypt_1", "addon_experimental-plane---field-1",
+                                                         "addon_experimental-plane---field-2", "addon_experimental-plane---field-3", "addon_forest_1",
+                                                         "addon_hole-drop", "addon_inapit", "addon_math-class",
+                                                         "addon_mountain-soccer--updated-", "addon_nitro-soccer-field", "addon_soccer-arena-x",
+                                                         "addon_syncopia-stadium", "addon_vivid-vacuum", "addon_zen" };
+            break;
+    }
+    if (category > 1 && available_fields.size() > 0)
+    {
+        int selected_field = std::rand() % available_fields.size();
+        m_set_field = available_fields[selected_field];
+    }
+
+    std::string msg = "Next played field will be " + m_set_field;
+    sendStringToAllPeers(msg);
 }
 //-----------------------------------------------------------------------------
 void ServerLobby::sendStringToPeer(std::string& s, std::shared_ptr<STKPeer>& peer) const

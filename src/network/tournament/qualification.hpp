@@ -38,7 +38,6 @@ private:
     std::vector<std::string> m_player_list;
     std::map<std::string, int> m_player_elos;
     int m_match_index = 0; // match0 = {player1, player2}, match1 = {player3, player4), ...
-    bool m_match_opened = false; // players can press ready if match is opened
 
     int getListIndex(std::string player_name) const;
     //void updateKartTeams();
@@ -56,9 +55,8 @@ public:
 
     void nextMatch();
     void setMatch(int match_id);
+    int getCurrentMatchId() const;
     int getMatchId(std::string player_name) const;
-    void openMatch();
-    void closeMatch();
 
     KartTeam getKartTeam(std::string player_name) const;
 

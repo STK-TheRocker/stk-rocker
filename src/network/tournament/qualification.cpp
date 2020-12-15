@@ -86,7 +86,7 @@ void SuperTournamentQualification::replacePlayer(std::string player_current, std
 
 bool SuperTournamentQualification::canPlay(std::string player_name) const
 {
-    return m_match_opened && getMatchId(player_name) == m_match_index;
+    return (getKartTeam(player_name) != KART_TEAM_NONE) && (getMatchId(player_name) == m_match_index);
 }
 
 void SuperTournamentQualification::nextMatch()
@@ -103,20 +103,15 @@ void SuperTournamentQualification::setMatch(int match_id)
     //updateKartTeams();
 }
 
+int SuperTournamentQualification::getCurrentMatchId() const
+{
+    return m_match_index;
+}
+
 int SuperTournamentQualification::getMatchId(std::string player_name) const
 {
     int listIndex = getListIndex(player_name);
     return listIndex < 0 ? -1 : listIndex / 2;
-}
-
-void SuperTournamentQualification::openMatch()
-{
-    m_match_opened = true;
-}
-
-void SuperTournamentQualification::closeMatch()
-{
-    m_match_opened = false;
 }
 
 KartTeam SuperTournamentQualification::getKartTeam(std::string player_name) const
