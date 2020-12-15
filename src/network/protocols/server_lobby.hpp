@@ -20,6 +20,7 @@
 #define SERVER_LOBBY_HPP
 
 #include "network/protocols/lobby_protocol.hpp"
+#include "network/tournament/qualification.hpp"
 #include "utils/cpp2011.hpp"
 #include "utils/time.hpp"
 #include "utils/track_filter.hpp"
@@ -338,6 +339,8 @@ private:
 
     std::vector<TrackFilter> m_tournament_track_filters;
 
+    SuperTournamentQualification m_super_tourn_quali;
+
     TrackFilter m_global_filter;
 
     std::set<std::string> m_temp_banned;
@@ -504,6 +507,8 @@ private:
     void initTournamentPlayers();
     void initRaceTournamentPlayers();
     void changeColors();
+    void superTournamentQualiUpdateKartTeams();
+    void setRandomField();
     void sendStringToPeer(std::string& s, std::shared_ptr<STKPeer>& peer) const;
     void sendStringToAllPeers(std::string& s);
     bool canRace(std::shared_ptr<STKPeer>& peer) const;

@@ -173,15 +173,16 @@ sqlite3_extension_init(sqlite3* db, char** pzErrMsg,
  */
 ServerLobby::ServerLobby() : LobbyProtocol()
 {
-	//ServerConfig::m_race_tournament = true;
+	//ServerConfig::m_race_tournament = false;
+    //ServerConfig::m_super_tournament_qualification = true;
 	//ServerConfig::m_race_tournament_players = "P TheRocker Waldlaubsaengernest FabianF Samurai-Goroh108 Hyper-E J re342 Gelbbrauenlaubsaenger";
 	//ServerConfig::m_owner_less = true;
 	//ServerConfig::m_min_start_game_players = 1;
-	//ServerConfig::m_server_configurable = true;
+	//ServerConfig::m_server_configurable = false;
 	//ServerConfig::m_start_game_counter = 180;
-	//ServerConfig::m_player_queue_limit = 2;
-	//ServerConfig::m_team_choosing = true;
-	//ServerConfig::m_rank_1vs1 = true;
+	//ServerConfig::m_player_queue_limit = -1;
+	//ServerConfig::m_team_choosing = false;
+	//ServerConfig::m_rank_1vs1 = false;
 
     m_client_server_host_id.store(0);
     m_lobby_players.store(0);
@@ -268,6 +269,11 @@ ServerLobby::ServerLobby() : LobbyProtocol()
 		initRaceTournamentPlayers();
 		m_tournament_game = 0;
 	}
+    if (ServerConfig::m_super_tournament_qualification)
+    {
+        std::string quali_players = ServerConfig::m_super_tournament_qualification_players; // "player1 player2 player3 ..."
+        m_super_tourn_quali = SuperTournamentQualification(quali_players);
+    }
     m_allowed_to_start = true;
     loadTracksQueueFromConfig();
     loadCustomScoring();
@@ -2649,6 +2655,12 @@ void ServerLobby::update(int ticks)
     case LOAD_WORLD:
         Log::info("ServerLobbyRoom", "Starting the race loading.");
         // This will create the world instance, i.e. load track and karts
+        if (ServerConfig::m_rank_soccer)
+		{
+            std::string singdrossel = "python3 current_ranked-soccer_players.py \"" + m_soccer_ranked_players + "\" \""+ m_soccer_ranked_elos + "\" &";
+            system(singdrossel.c_str());
+            Log::info("ServerLobbyRoom", "Adding players succesfully done.");
+		}
 		init1vs1Ranking();
 		if (m_player_queue_limit > 0)
 		{
@@ -2695,7 +2707,7 @@ void ServerLobby::update(int ticks)
         {
             system("python3 update_elo.py 1vs1_3 &");
         }
-	if (ServerConfig::m_rank_soccer)
+        if (ServerConfig::m_rank_soccer)
         {
             system("python3 update_elo_ranked-soccer.py ");
             system("python3 update_wiki_ranked-soccer.py ");
@@ -2713,11 +2725,11 @@ void ServerLobby::update(int ticks)
 			std::string singdrossel="python3 supertournament_gameresult.py "+redname+' '+bluename+" &";
             system(singdrossel.c_str());
         }
-	if (ServerConfig::m_rank_soccer)
-	{
-	    m_soccer_ranked_players="";
-	    m_soccer_ranked_elos="";
-	}
+        if (ServerConfig::m_rank_soccer)
+        {
+            m_soccer_ranked_players="";
+            m_soccer_ranked_elos="";
+        }
         Log::info("ServerLobby", "End of game message sent");
         break;
     case RESULT_DISPLAY:
@@ -3684,15 +3696,27 @@ void ServerLobby::checkRaceFinished()
     assert(World::getWorld());
     if (!RaceEventManager::get()->isRaceOver()) return;
 
-    if (ServerConfig::m_soccer_tournament)
+    if (ServerConfig::m_soccer_tournament || ServerConfig::m_super_tournament_qualification)
     {
         World* w = World::getWorld();
         if (w)
         {
             SoccerWorld *sw = dynamic_cast<SoccerWorld*>(w);
-            sw->tellCountIfDiffers();
+
+            if (ServerConfig::m_soccer_tournament)
+            {
+                sw->tellCountIfDiffers();
+            }
+            
+            if (ServerConfig::m_super_tournament_qualification)
+            {
+                int red_goals = sw->getScore(KART_TEAM_RED);
+                int blue_goals = sw->getScore(KART_TEAM_BLUE);
+                m_super_tourn_quali.updateElos(red_goals, blue_goals);
+            }
         }
     }
+
     Log::info("ServerLobby", "The game is considered finished.");
     // notify the network world that it is stopped
     RaceEventManager::get()->stop();
@@ -4708,7 +4732,7 @@ void ServerLobby::handleUnencryptedConnection(std::shared_ptr<STKPeer> peer,
 			 default_kart_color, i == 0 ? online_id : 0,
 			 handicap, (uint8_t)i, KART_TEAM_NONE,
 			 country_code);
-        if ((ServerConfig::m_team_choosing && !ServerConfig::m_soccer_tournament))
+        if ((ServerConfig::m_team_choosing && !ServerConfig::m_soccer_tournament && !ServerConfig::m_super_tournament_qualification))
         {
             KartTeam cur_team = KART_TEAM_NONE;
             if (red_blue.first > red_blue.second)
@@ -4723,7 +4747,8 @@ void ServerLobby::handleUnencryptedConnection(std::shared_ptr<STKPeer> peer,
             }
             player->setTeam(cur_team);
         }
-        if (ServerConfig::m_soccer_tournament) {
+        if (ServerConfig::m_soccer_tournament) 
+        {
             if (m_tournament_red_players.count(utf8_online_name)) 
                 player->setTeam(KART_TEAM_RED);
             else if (m_tournament_blue_players.count(utf8_online_name))
@@ -4736,10 +4761,6 @@ void ServerLobby::handleUnencryptedConnection(std::shared_ptr<STKPeer> peer,
                     player->setTeam(KART_TEAM_BLUE);
             }
         }
-	if (ServerConfig::m_soccer_tournament)
-	{
-	    player->setTeam(KART_TEAM_NONE);
-	}
         peer->addPlayer(player);
     }
 
@@ -7955,7 +7976,7 @@ void ServerLobby::handleServerCommand(Event* event,
 		}
 	}
 	if (ServerConfig::m_super_tournament)
-        {
+    {
         std::string peer_username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
         if (argv[0] == "join")
         {
@@ -7970,7 +7991,7 @@ void ServerLobby::handleServerCommand(Event* event,
             {
                 std::string msg = "None good - u wrong use command";
                 sendStringToPeer(msg, peer);
-		return;
+                return;
             }
             bool valid_time=(argv[1]=="mo16" || argv[1]=="mo17" || argv[1]=="mo18" || argv[1]=="mo19" || argv[1]=="tu16" || argv[1]=="tu17" || argv[1]=="tu18" || argv[1]=="tu19" || argv[1]=="we16" || argv[1]=="we17" || argv[1]=="we18" || argv[1]=="we19" || argv[1]=="th16" || argv[1]=="th17" || argv[1]=="th18" || argv[1]=="th19" ||argv[1]=="fr16" || argv[1]=="fr17" || argv[1]=="fr18" || argv[1]=="fr19" ||argv[1]=="sa16" || argv[1]=="sa17" || argv[1]=="sa18" || argv[1]=="sa19" || argv[1]=="su16" || argv[1]=="su17" || argv[1]=="su18" || argv[1]=="su19" || argv[1]=="mo" || argv[1]=="tu" || argv[1]=="we" || argv[1]=="th" || argv[1]=="fr" || argv[1]=="sa" ||argv[1]=="su" || argv[1]=="weekdays" || argv[1]=="weekends" || argv[1]=="weekdays16" || argv[1]=="weekends16" ||argv[1]=="weekdays17" || argv[1]=="weekends17" ||argv[1]=="weekdays18" || argv[1]=="weekends18" || argv[1]=="weekdays19" || argv[1]=="weekends19" ||argv[1]=="16" || argv[1]=="17" || argv[1]=="18" || argv[1]=="19"||argv[1]=="all");
             if(valid_time)
@@ -7988,7 +8009,7 @@ void ServerLobby::handleServerCommand(Event* event,
         }
         if (argv[0] == "count")
         {
-	    if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
+            if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
             {
                 std::string msg = "You are not a referee";
                 sendStringToPeer(msg, peer);
@@ -8001,7 +8022,7 @@ void ServerLobby::handleServerCommand(Event* event,
         }
         if (argv[0] == "nocount")
         {
-	    if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
+            if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
             {
                 std::string msg = "You are not a referee";
                 sendStringToPeer(msg, peer);
@@ -8013,7 +8034,7 @@ void ServerLobby::handleServerCommand(Event* event,
         }
         if (argv[0] == "setteams")
         {
-	    if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
+            if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
             {
                 std::string msg = "You are not a referee";
                 sendStringToPeer(msg, peer);
@@ -8022,22 +8043,22 @@ void ServerLobby::handleServerCommand(Event* event,
             if (argv[1]=="A" || argv[1]=="B" || argv[1]=="C" || argv[1]=="D" || argv[1]=="E" || argv[1]=="F" || argv[1]=="G")
             {
                 if (argv[2]=="A" || argv[2]=="B" || argv[2]=="C" || argv[2]=="D" || argv[2]=="E" || argv[2]=="F" || argv[2]=="G")
-		{
+                {
                     ServerConfig::m_red_team_name=argv[1];
                     ServerConfig::m_blue_team_name=argv[2];
                     std::string msg = "Next match will be "+argv[1]+" vs "+argv[2]+".";
                     sendStringToAllPeers(msg);
-		}
-	    }
-	    else
-	    {
-                std::string msg = "Please use A, B, C or D as team name.";                                                                 
-                sendStringToPeer(msg, peer); 
-	    }
+                }
+            }
+            else
+            {
+                    std::string msg = "Please use A, B, C or D as team name.";                                                                 
+                    sendStringToPeer(msg, peer); 
+            }
         }
         if (argv[0] == "yellow")
         {
-	    if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
+            if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
             {
                 std::string msg = "You are not a referee";
                 sendStringToPeer(msg, peer);
@@ -8056,7 +8077,7 @@ void ServerLobby::handleServerCommand(Event* event,
             std::string ringdrossel="python3 supertournament_yellow.py "+argv[1]+" &";
             system(ringdrossel.c_str());
         }
-	if (argv[0] == "addon")
+        if (argv[0] == "addon")
         {
             if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
             {
@@ -8071,7 +8092,7 @@ void ServerLobby::handleServerCommand(Event* event,
             std::string msg = "Succesfully edited Addon.";
             sendStringToPeer(msg, peer);
         }
-	if (argv[0] == "server")
+        if (argv[0] == "server")
         {
             if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
             {
@@ -8086,7 +8107,7 @@ void ServerLobby::handleServerCommand(Event* event,
             std::string msg = "Succesfully edited Server.";
             sendStringToPeer(msg, peer);
         }
-	if (argv[0] == "referee")
+        if (argv[0] == "referee")
         {
             if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
             {
@@ -8101,7 +8122,7 @@ void ServerLobby::handleServerCommand(Event* event,
             std::string msg = "Succesfully edited Referee.";
             sendStringToPeer(msg, peer);
         }
-	if (argv[0] == "video")
+        if (argv[0] == "video")
         {
             if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
             {
@@ -8116,7 +8137,7 @@ void ServerLobby::handleServerCommand(Event* event,
             std::string msg = "Succesfully edited video link.";
             sendStringToPeer(msg, peer);
         }
-	if (argv[0] == "notes")
+        if (argv[0] == "notes")
         {
             if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
             {
@@ -8131,7 +8152,7 @@ void ServerLobby::handleServerCommand(Event* event,
             std::string msg = "Succesfully edited notes.";
             sendStringToPeer(msg, peer);
         }
-	if (argv[0] == "skip")
+        if (argv[0] == "skip")
         {
             if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
             {
@@ -8143,7 +8164,7 @@ void ServerLobby::handleServerCommand(Event* event,
             std::string msg = "Skipping end enabled.";
             sendStringToPeer(msg, peer);
         }
-	if (argv[0] == "noskip")
+        if (argv[0] == "noskip")
         {
             if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
             {
@@ -8156,12 +8177,170 @@ void ServerLobby::handleServerCommand(Event* event,
             sendStringToPeer(msg, peer);
         }
     }
+
+    if (ServerConfig::m_super_tournament_qualification)
+    {
+        if (argv[0] == "quali")
+        {
+            if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
+            {
+                std::string msg = "You are not a referee";
+                sendStringToPeer(msg, peer);
+                return;
+            }
+
+            if (argv.size() < 2)
+            {
+                std::string msg = "Format: /quali {teams, next, match, game, add, remove, replace}";
+                sendStringToPeer(msg, peer);
+                return;
+            }
+
+            if (argv[1] == "teams")
+            {
+                if (m_super_tourn_quali.getPlayerList().size() % 2 != 0)
+                {
+                    std::string msg = "The number of matches must be a multiple of 2.";
+                    sendStringToPeer(msg, peer);
+                    return;
+                }
+
+                m_super_tourn_quali.readElosFromFile();
+                m_super_tourn_quali.sortPlayersByElo();
+                superTournamentQualiUpdateKartTeams();
+
+                std::string msg = "New teams created.";
+                sendStringToPeer(msg, peer);
+            }
+            else if (argv[1] == "next")
+            {
+                if (argv.size() != 2)
+                {
+                    std::string msg = "Format: /quali next";
+                    sendStringToPeer(msg, peer);
+                    return;
+                }
+
+                // Give a kart team to the players of the next match
+                m_super_tourn_quali.nextMatch();
+                superTournamentQualiUpdateKartTeams();
+
+                std::string matchIdxStr = std::to_string(m_super_tourn_quali.getCurrentMatchId());
+                std::string msg1 = "Ready to start game " + matchIdxStr + " for " + std::to_string(m_fixed_lap) + " minutes.";
+                sendStringToAllPeers(msg1);
+
+                // Select a random field
+                setRandomField();
+            }
+            else if (argv[1] == "match")
+            {
+                if (argv.size() < 3 && argv.size() > 4)
+                {
+                    std::string msg = "Format: /quali match {[match_letter], [match_index]} [length]";
+                    sendStringToPeer(msg, peer);
+                    return;
+                }
+
+                // Update the game length if a value is set
+                if (argv.size() == 4)
+                {
+                    std::string length_string = argv[3];
+                    if (!length_string.empty() && std::all_of(length_string.begin(), length_string.end(), ::isdigit))
+                        m_fixed_lap = std::stoi(length_string);
+                }
+
+                // Give a kart team to the players of the next match
+                std::string matchIdxStr = argv[2];
+                int matchIdx = -1;
+                if (matchIdxStr.length() == 1 && matchIdxStr[0] >= 'A' && matchIdxStr[0] <= 'Z') // /quali match A
+                    matchIdx = matchIdxStr[0] - 'A';
+                else if (!matchIdxStr.empty() && std::all_of(matchIdxStr.begin(), matchIdxStr.end(), ::isdigit)) // quali match 1
+                    matchIdx = std::stoi(matchIdxStr);
+                if (matchIdx == -1)
+                {
+                    std::string msg = "The match index must be a positive number or a capital letter.";
+                    sendStringToPeer(msg, peer);
+                    return;
+                }
+                m_super_tourn_quali.setMatch(matchIdx);
+                superTournamentQualiUpdateKartTeams();
+
+                std::string msg1 = "Ready to start game " + matchIdxStr + " for " + std::to_string(m_fixed_lap) + " minutes.";
+                sendStringToAllPeers(msg1);
+
+                // Select a random field
+                setRandomField();
+            }
+            else if (argv[1] == "add")
+            {
+                if (argv.size() < 3 && argv.size() > 4)
+                {
+                    std::string msg = "Format: /quali add player_name [elo]";
+                    sendStringToPeer(msg, peer);
+                    return;
+                }
+                std::string player_name = argv[2];
+                int elo = 1500;
+                if (argv.size() == 4)
+                {
+                    std::string elo_string = argv[3];
+                    if (!elo_string.empty() && std::all_of(elo_string.begin(), elo_string.end(), ::isdigit))
+                        elo = std::stoi(elo_string);
+                }
+
+                m_super_tourn_quali.addPlayer(player_name, elo);
+
+                std::string msg = "Added player " + player_name + " with elo " + std::to_string(elo);
+                sendStringToPeer(msg, peer);
+            }
+            else if (argv[1] == "remove")
+            {
+                if (argv.size() != 3)
+                {
+                    std::string msg = "Format: /quali remove player_name";
+                    sendStringToPeer(msg, peer);
+                    return;
+                }
+                std::string player_name = argv[2];
+                m_super_tourn_quali.removePlayer(player_name);
+
+                std::string msg = "Removed player " + player_name;
+                sendStringToPeer(msg, peer);
+            }
+            else if (argv[1] == "replace")
+            {
+                if (argv.size() < 4 && argv.size() > 5)
+                {
+                    std::string msg = "Format: /quali replace player_current player_new [elo_new]";
+                    sendStringToPeer(msg, peer);
+                    return;
+                }
+                std::string player_current = argv[2];
+                std::string player_new = argv[3];
+                int elo_new = 1500;
+                if (argv.size() == 5)
+                {
+                    std::string elo_string = argv[4];
+                    if (!elo_string.empty() && std::all_of(elo_string.begin(), elo_string.end(), ::isdigit))
+                        elo_new = std::stoi(elo_string);
+                }
+
+                m_super_tourn_quali.replacePlayer(player_current, player_new, elo_new);
+
+                std::string msg = "Player " + player_current + " is replaced by player " + player_new + " with elo " + std::to_string(elo_new);
+                sendStringToPeer(msg, peer);
+            }
+
+            updatePlayerList();
+        }
+    }
+
     if (ServerConfig::m_soccer_tournament)
     {
         std::string peer_username = StringUtils::wideToUtf8(
             peer->getPlayerProfiles()[0]->getName());
         if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer))) 
-	{
+        {
             if(!ServerConfig::m_super_tournament)
 	        {
 		        std::string msg = "You are not a referee";
@@ -8173,45 +8352,45 @@ void ServerLobby::handleServerCommand(Event* event,
         {
             bool ok=false;
             if (std::stoi(argv[1])>0 && std::stoi(argv[1])<=5) ok=true;
-	    std::string msg;
+            std::string msg;
             if (argv.size() >= 3) 
             {
-	        ok=false;
-	        if (std::stoi(argv[2])>0 && std::stoi(argv[2])<=15) ok=true;
-	    }
+                ok=false;
+                if (std::stoi(argv[2])>0 && std::stoi(argv[2])<=15) ok=true;
+            }
             if (argv.size() < 2 || ok==false)
-	    {
+            {
                 msg = "Please specify a correct number. Format: /game [number][length]";
                 sendStringToPeer(msg, peer);
-		return;
+                return;
             }
 
             int length=7;
             m_fixed_lap = length;
-	    if (argv.size() >=3) m_fixed_lap = std::stoi(argv[2]);
+            if (argv.size() >=3) m_fixed_lap = std::stoi(argv[2]);
              
             switch(std::stoi(argv[1]))
-	    {
+            {
                 case 1:
-	        {
-                        m_available_kts.second.clear();
-                        m_available_kts.second.insert("icy_soccer_field");
-			break;
-		}
-	        case 5:
-		{
-                        m_available_kts.second.clear();
-                        m_available_kts.second.insert("addon_supertournament-field");
-			break;
-		}
-	        case 3:
-		{
-                        m_available_kts.second.clear();
-                        m_available_kts.second.insert("addon_tournament-field");
-                        m_available_kts.second.insert("soccer_field");
-                        m_available_kts.second.insert("lasdunassoccer");
-			break;
-		}
+                {
+                    m_available_kts.second.clear();
+                    m_available_kts.second.insert("icy_soccer_field");
+                    break;
+                }
+                case 5:
+                {
+                    m_available_kts.second.clear();
+                    m_available_kts.second.insert("addon_supertournament-field");
+			        break;
+                }
+	            case 3:
+                {
+                    m_available_kts.second.clear();
+                    m_available_kts.second.insert("addon_tournament-field");
+                    m_available_kts.second.insert("soccer_field");
+                    m_available_kts.second.insert("lasdunassoccer");
+                    break;
+                }
             }
             msg = "Ready to start game "+argv[1]+" for "+ std::to_string(m_fixed_lap)+" minutes!";
             sendStringToAllPeers(msg);
@@ -9118,6 +9297,58 @@ void ServerLobby::changeColors()
     }
     updatePlayerList();
 }   // changeColors
+void ServerLobby::superTournamentQualiUpdateKartTeams()
+{
+    if (ServerConfig::m_super_tournament_qualification)
+    {
+        auto peers = STKHost::get()->getPeers();
+        for (auto peer : peers)
+        {
+            for (auto player : peer->getPlayerProfiles())
+            {
+                std::string player_name = StringUtils::wideToUtf8(player->getName());
+                KartTeam kart_team = m_super_tourn_quali.getKartTeam(player_name);
+                player->setTeam(kart_team);
+            }
+        }
+    }
+}
+//-----------------------------------------------------------------------------
+void ServerLobby::setRandomField()
+{
+    std::srand(std::time(nullptr));
+    std::vector<std::string> available_fields;
+    int category = std::rand() % 5;
+    switch (category)
+    {
+        case 0: // Icy
+            m_set_field = "icy_soccer_field";
+            break;
+        case 1: // SuperTournament Field
+            m_set_field = "addon_supertournament-field";
+            break;
+        case 2: // Soccer Field, Las Dunas or Tournament Field
+            available_fields = std::vector<std::string>{ "soccer_field", "lasdunassoccer", "addon_tournament-field" };
+            break;
+        case 3: case 4: // Addons
+            available_fields = std::vector<std::string>{ "addon_advanced-course", "addon_air-hockey", "addon_another-soccer-field",
+                                                         "addon_asteroid-soccer", "addon_bizarre-darkness", "addon_box", "addon_cosmic",
+                                                         "addon_database", "addon_egypt_1", "addon_experimental-plane---field-1",
+                                                         "addon_experimental-plane---field-2", "addon_experimental-plane---field-3", "addon_forest_1",
+                                                         "addon_hole-drop", "addon_inapit", "addon_math-class",
+                                                         "addon_mountain-soccer--updated-", "addon_nitro-soccer-field", "addon_soccer-arena-x",
+                                                         "addon_syncopia-stadium", "addon_vivid-vacuum", "addon_zen" };
+            break;
+    }
+    if (category > 1 && available_fields.size() > 0)
+    {
+        int selected_field = std::rand() % available_fields.size();
+        m_set_field = available_fields[selected_field];
+    }
+
+    std::string msg = "Next played field will be " + m_set_field;
+    sendStringToAllPeers(msg);
+}
 //-----------------------------------------------------------------------------
 void ServerLobby::sendStringToPeer(std::string& s, std::shared_ptr<STKPeer>& peer) const
 {
@@ -9199,7 +9430,11 @@ bool ServerLobby::canRace(STKPeer* peer) const
 		if (hasGnuKart == false) return false;
 	}
 
-    if (ServerConfig::m_soccer_tournament)
+    if (ServerConfig::m_super_tournament_qualification)
+    {
+        return m_super_tourn_quali.canPlay(username);
+    }
+    else if (ServerConfig::m_soccer_tournament)
     {
         return m_tournament_red_players.count(username) > 0 || 
             m_tournament_blue_players.count(username) > 0;
