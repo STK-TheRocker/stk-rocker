@@ -17,7 +17,10 @@
 //  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "network/tournament/qualification.hpp"
-
+#include <iostream>
+#include <fstream>
+#include <string>
+#include "utils/string_utils.hpp"
 
 SuperTournamentQualification::SuperTournamentQualification()
 { 
@@ -142,20 +145,33 @@ void SuperTournamentQualification::updateElos(int red_goals, int blue_goals)
     std::string message = "Match result: " + red_player + " " + std::to_string(red_goals) + "-" + std::to_string(blue_goals) + " " + blue_player;
     Log::info("SuperTournamentQualification", message.c_str());
 
-    // TODO: Use the elo formula in order to update the elo for player1 and player2
-
-    //m_player_elos[red_player] = newElo(red_player);
-    //m_player_elos[blue_player] = newElo(blue_player);
-
-    // TODO: If needed, send the updated elos to the database
+    std::string fitis = "python3 super1vs1quali_update_elo.py "+ red_player + " " + blue_player + " " + std::to_string(m_player_elos[red_player]) + " " + std::to_string(m_player_elos[blue_player]) + " " + std::to_string(red_goals) + " " + std::to_string(blue_goals);
+    system(fitis.c_str());
+    readElosFromFile();
 }
 
 void SuperTournamentQualification::readElosFromFile()
 {
-    // TODO: Read all elos from a text file and store them like in this example
-
-    //std::string player_name = "TheRocker";
-    //m_player_elos[player_name] = 1900;
+     std::ifstream in_file("super1vs1quali_ranking.txt");
+     int elo;
+     std::string player;
+     std::string test="test test";
+     auto split=StringUtils::split(test,' ');
+     if (in_file.is_open())
+     {
+         std::string line;
+         std::getline(in_file, line);
+         while (std::getline(in_file, line))
+         {
+             split = StringUtils::split(line, ' ');
+             if (split.size()<4) continue;
+             if (split[1]=="Played_Games") continue;
+             elo=int(stof(split[3]));
+             player=split[0];
+             m_player_elos[player]=elo;
+         }
+     }
+     in_file.close();
 }
 
 void SuperTournamentQualification::sortPlayersByElo()

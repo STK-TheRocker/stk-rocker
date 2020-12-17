@@ -927,11 +927,23 @@ bool SoccerWorld::isRaceOver()
 
     if (RaceManager::get()->hasTimeTarget())
     {
+	if (m_count_down_reached_zero)
+	{
+	    ServerConfig::m_spielzeit = m_time;
+	}
         return m_count_down_reached_zero;
     }
     // One team scored the target goals ...
     else
     {
+	if (getScore(KART_TEAM_BLUE) + m_init_blue_goals
+            - m_bad_blue_goals >= m_goal_target ||
+            getScore(KART_TEAM_RED) + m_init_red_goals
+            - m_bad_red_goals >= m_goal_target)
+        {
+            ServerConfig::m_spielzeit = m_time;
+        }
+
         return (getScore(KART_TEAM_BLUE) + m_init_blue_goals
             - m_bad_blue_goals >= m_goal_target ||
             getScore(KART_TEAM_RED) + m_init_red_goals

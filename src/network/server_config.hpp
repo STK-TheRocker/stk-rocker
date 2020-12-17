@@ -287,6 +287,14 @@ namespace ServerConfig
         "It's determined by number of official karts in client / number of "
         "official karts in server"));
 
+    SERVER_CFG_PREFIX FloatServerConfigParam m_spielzeit
+        SERVER_CFG_DEFAULT(FloatServerConfigParam(0.0f,
+        "spielzeit",
+        "Time of the soccer match "
+        "Yes."
+        "Indeed."));
+
+
     SERVER_CFG_PREFIX FloatServerConfigParam m_official_tracks_threshold
         SERVER_CFG_DEFAULT(FloatServerConfigParam(0.7f,
         "official-tracks-threshold",

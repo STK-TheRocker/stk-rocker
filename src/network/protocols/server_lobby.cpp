@@ -2173,8 +2173,20 @@ void ServerLobby::liveJoinRequest(Event* event)
 		// Reject live join if player limit is reached
 		bool queuePlayerLimitReached = m_player_queue_limit > 0 && red + blue + m_pending_live_joiners.size() > m_player_queue_limit;
 		if (is1vs1Player) queuePlayerLimitReached = false;
-	
-        if (used_id.size() != peer->getPlayerProfiles().size() || queuePlayerLimitReached || ServerConfig::m_rank_soccer)
+                
+	        bool in_ranklist = true;
+		if ( ServerConfig::m_rank_soccer)
+		{
+	            in_ranklist = false;
+		    std::string username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
+                    auto playersr=StringUtils::split(m_soccer_ranked_players,' ');
+		    for (int ivar=0;ivar<playersr.size();ivar++)
+		    {
+		        if (username==playersr[ivar]) in_ranklist=true;
+		    }
+		}
+
+        if (used_id.size() != peer->getPlayerProfiles().size() || queuePlayerLimitReached || !(in_ranklist))
         {
             for (unsigned i = 0; i < peer->getPlayerProfiles().size(); i++)
                 peer->getPlayerProfiles()[i]->setKartName("");
@@ -2502,6 +2514,7 @@ void ServerLobby::update(int ticks)
         m_state.load() <= RACING && m_server_has_loaded_world.load();
     bool all_players_in_world_disconnected = (w != NULL && world_started);
     int sec = ServerConfig::m_kick_idle_player_seconds;
+    std::string msg42;
     if (world_started)
     {
         for (unsigned i = 0; i < RaceManager::get()->getNumPlayers(); i++)
@@ -2684,6 +2697,7 @@ void ServerLobby::update(int ticks)
             !GameProtocol::emptyInstance())
             return;
 
+	//int zeit=World::getWorld()->getTime();
         // This will go back to lobby in server (and exit the current race)
         exitGameState();
 		// Enable all karts again
@@ -2695,6 +2709,8 @@ void ServerLobby::update(int ticks)
         m_timeout.store((int64_t)StkTime::getMonoTimeMs() + 15000);
         m_state = RESULT_DISPLAY;
         sendMessageToPeers(m_result_ns, /*reliable*/ true);
+	//msg42=The match time is +std::to_string(ServerConfig::m_spielzeit);
+	//sendStringToAllPeers(msg42);
         if (ServerConfig::m_rank_1vs1)
         {
             system("python3 update_elo.py 1vs1 &");
@@ -2709,8 +2725,8 @@ void ServerLobby::update(int ticks)
         }
         if (ServerConfig::m_rank_soccer)
         {
-            system("python3 update_elo_ranked-soccer.py ");
-            system("python3 update_wiki_ranked-soccer.py ");
+	    std::string singdrossel="python3 update_elo_ranked-soccer-DB.py " + std::to_string(ServerConfig::m_spielzeit);
+            system(singdrossel.c_str());
         }
 
         if (ServerConfig::m_save_goals)
@@ -2721,9 +2737,6 @@ void ServerLobby::update(int ticks)
         if (ServerConfig::m_super_tournament && ServerConfig::m_count_supertournament_game && !(ServerConfig::m_skip_end))
         {
             std::string redname=ServerConfig::m_red_team_name;
-            std::string bluename=ServerConfig::m_blue_team_name;
-			std::string singdrossel="python3 supertournament_gameresult.py "+redname+' '+bluename+" &";
-            system(singdrossel.c_str());
         }
         if (ServerConfig::m_rank_soccer)
         {
@@ -3018,28 +3031,38 @@ void ServerLobby::startSelection(const Event *event)
 	                return;
 		    }
 		}
-		//int warten3=0;
-                //while (m_wait4discon && warten3<20)
-                //{
-                //    usleep(2000);
-                //    warten3+=2;
-                //}
-
-                //m_wait4add=true;
 
 		m_soccer_ranked_players= m_soccer_ranked_players + " " + peer_username;
 		m_soccer_ranked_elos= m_soccer_ranked_elos + " " + std::to_string(elo);
 
-                //m_wait4add=false;
 
-                sendStringToPeer(msg, peer);
 		players=StringUtils::split(m_soccer_ranked_players,' ');
 		auto elos=StringUtils::split(m_soccer_ranked_elos,' ');
+                
+		int min=1;
+		int i3;
+		std::string player_copy="";
+		if (players.size()%2==0)  // in this case the number of players in uneven
+		{
+		    for(i3=1;i3<elos.size();i3++)
+		    {
+		        if(elos[i3] <= elos[min])
+			{
+			    min = i3;
+			}
+		    }
+		    for (i3=1;i3<players.size();i3++)
+		    {
+			if (players[i3]==players[min]) continue;
+	                player_copy = player_copy + " " + players[i3];
+		    }
+		    players=StringUtils::split(player_copy,' ');
+		    msg=player_copy;
+                    sendStringToPeer(msg, peer);
+                }
                 std::vector<std::pair<std::string, int>> elo_players;
-                sendStringToPeer(msg, peer);
 		for(int i=1;i<std::min(players.size(),elos.size());i++)
 		{
-                    sendStringToPeer(msg, peer);
 		    elo_players.push_back(std::pair<std::string, int>(players[i],std::stoi(elos[i])));
 		}
 
@@ -3052,12 +3075,22 @@ void ServerLobby::startSelection(const Event *event)
         	for (auto &player : teams.second) blue_team += player + " ";
                 msg = "Red Team:" + red_team+" Blue Team:"+ blue_team;
                 sendStringToPeer(msg, peer);
+		float random = rand();
 
                 for (auto peer2 : peers2)
                 {
                     for (auto player : peer2->getPlayerProfiles())
                     {
                         std::string username = std::string(StringUtils::wideToUtf8(player->getName()));
+			if (players.size()%2==1)
+			{
+			    if (username==players[min])
+		            {
+		                if (random>=0.5) peer2->getPlayerProfiles()[0]->setTeam(KART_TEAM_RED);
+				else peer2->getPlayerProfiles()[0]->setTeam(KART_TEAM_BLUE);
+			    }
+
+			}
                         if (std::find(teams.first.begin(), teams.first.end(), username) != teams.first.end())
                             peer2->getPlayerProfiles()[0]->setTeam(KART_TEAM_RED);
                         if (std::find(teams.second.begin(), teams.second.end(), username) != teams.second.end())
@@ -3195,6 +3228,7 @@ void ServerLobby::startSelection(const Event *event)
 		if (m_available_kts.second.count(m_set_field))
 		{
 			m_available_kts.second.clear();
+		
 			m_available_kts.second.insert(m_set_field);
 		}
 		else
@@ -3694,15 +3728,14 @@ void ServerLobby::checkRaceFinished()
 {
     assert(RaceEventManager::get()->isRunning());
     assert(World::getWorld());
+    std::string msg42;
     if (!RaceEventManager::get()->isRaceOver()) return;
-
     if (ServerConfig::m_soccer_tournament || ServerConfig::m_super_tournament_qualification)
     {
         World* w = World::getWorld();
         if (w)
         {
             SoccerWorld *sw = dynamic_cast<SoccerWorld*>(w);
-
             if (ServerConfig::m_soccer_tournament)
             {
                 sw->tellCountIfDiffers();
