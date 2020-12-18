@@ -174,7 +174,7 @@ sqlite3_extension_init(sqlite3* db, char** pzErrMsg,
 ServerLobby::ServerLobby() : LobbyProtocol()
 {
 	//ServerConfig::m_race_tournament = false;
-    //ServerConfig::m_super_tournament_qualification = true;
+    ServerConfig::m_super_tournament_qualification = true;
 	//ServerConfig::m_race_tournament_players = "P TheRocker Waldlaubsaengernest FabianF Samurai-Goroh108 Hyper-E J re342 Gelbbrauenlaubsaenger";
 	//ServerConfig::m_owner_less = true;
 	//ServerConfig::m_min_start_game_players = 1;
@@ -2700,8 +2700,9 @@ void ServerLobby::update(int ticks)
 	//int zeit=World::getWorld()->getTime();
         // This will go back to lobby in server (and exit the current race)
         exitGameState();
-		// Enable all karts again
+		// Enable all tracks and karts again
 		m_set_kart.clear();
+        m_set_field = "";
         // Reset for next state usage
         resetPeersReady();
         // Set the delay before the server forces all clients to exit the race
@@ -3161,7 +3162,7 @@ void ServerLobby::startSelection(const Event *event)
         bool can_race = canRace(peer);
         if (!can_race)
         {
-			if (ServerConfig::m_soccer_tournament || ServerConfig::m_race_tournament)
+			if (ServerConfig::m_soccer_tournament || ServerConfig::m_race_tournament || ServerConfig::m_super_tournament_qualification)
 			{
 				peer->setAlwaysSpectate(true);
 			}
@@ -3236,7 +3237,6 @@ void ServerLobby::startSelection(const Event *event)
 			m_available_kts.second.clear();
 		}
 		//m_available_kts.second.insert("icy_soccer_field");
-		m_set_field = "";
 	}
 
 	if (m_gnu_elimination && m_gnu2_activated) 	// For gnu2 elimination, a specific selection of tracks is available
@@ -7899,7 +7899,6 @@ void ServerLobby::handleServerCommand(Event* event,
 
 			if (kart_name == "all")
 			{
-				m_set_field = "";
 				if (m_set_kart.count(user_name))
 					m_set_kart.erase(user_name);
 				std::string msg = user_name + " can use all karts again.";
