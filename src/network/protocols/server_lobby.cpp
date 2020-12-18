@@ -8007,7 +8007,7 @@ void ServerLobby::handleServerCommand(Event* event,
 			}
 		}
 	}
-	if (ServerConfig::m_super_tournament)
+	if (ServerConfig::m_super_tournament || ServerConfig::m_super_tournament_qualification)
     {
         std::string peer_username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
         if (argv[0] == "join")
@@ -8039,55 +8039,6 @@ void ServerLobby::handleServerCommand(Event* event,
                 sendStringToPeer(msg, peer);
             }
         }
-        if (argv[0] == "count")
-        {
-            if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
-            {
-                std::string msg = "You are not a referee";
-                sendStringToPeer(msg, peer);
-                return;
-            }
-
-            ServerConfig::m_count_supertournament_game=true;
-            std::string msg = "Counting enabled.";
-            sendStringToPeer(msg, peer);
-        }
-        if (argv[0] == "nocount")
-        {
-            if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
-            {
-                std::string msg = "You are not a referee";
-                sendStringToPeer(msg, peer);
-                return;
-            } 
-            ServerConfig::m_count_supertournament_game=false;
-            std::string msg = "Counting disabled.";
-            sendStringToPeer(msg, peer);
-        }
-        if (argv[0] == "setteams")
-        {
-            if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
-            {
-                std::string msg = "You are not a referee";
-                sendStringToPeer(msg, peer);
-                return;
-            }
-            if (argv[1]=="A" || argv[1]=="B" || argv[1]=="C" || argv[1]=="D" || argv[1]=="E" || argv[1]=="F" || argv[1]=="G")
-            {
-                if (argv[2]=="A" || argv[2]=="B" || argv[2]=="C" || argv[2]=="D" || argv[2]=="E" || argv[2]=="F" || argv[2]=="G")
-                {
-                    ServerConfig::m_red_team_name=argv[1];
-                    ServerConfig::m_blue_team_name=argv[2];
-                    std::string msg = "Next match will be "+argv[1]+" vs "+argv[2]+".";
-                    sendStringToAllPeers(msg);
-                }
-            }
-            else
-            {
-                    std::string msg = "Please use A, B, C or D as team name.";                                                                 
-                    sendStringToPeer(msg, peer); 
-            }
-        }
         if (argv[0] == "yellow")
         {
             if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
@@ -8097,130 +8048,184 @@ void ServerLobby::handleServerCommand(Event* event,
                 return;
             }
             int len_argv = argv.size();
-            int v1=2;
-            std::string msg = argv[1]+" was shown a yellow card by the Referee. Reason:";
-            printf("%i",len_argv);
-            while (v1<len_argv)
+            int v1 = 2;
+            std::string msg = argv[1] + " was shown a yellow card by the Referee. Reason:";
+            printf("%i", len_argv);
+            while (v1 < len_argv)
             {
-                msg+=(" "+argv[v1]);
+                msg += (" " + argv[v1]);
                 v1++;
             }
             sendStringToAllPeers(msg);
-            std::string ringdrossel="python3 supertournament_yellow.py "+argv[1]+" &";
+            std::string ringdrossel = "python3 supertournament_yellow.py " + argv[1] + " &";
             system(ringdrossel.c_str());
         }
-        if (argv[0] == "addon")
+
+        // Following commands are SuperTournament only
+        if (ServerConfig::m_super_tournament)
         {
-            if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
+            if (argv[0] == "count")
             {
-                std::string msg = "You are not a referee";
+                if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
+                {
+                    std::string msg = "You are not a referee";
+                    sendStringToPeer(msg, peer);
+                    return;
+                }
+
+                ServerConfig::m_count_supertournament_game = true;
+                std::string msg = "Counting enabled.";
                 sendStringToPeer(msg, peer);
-                return;
             }
-            std::string blau=ServerConfig::m_blue_team_name;
-            std::string rot=ServerConfig::m_red_team_name;
-            std::string ringdrossel="python3 supertournament_match_info.py "+argv[1]+" Addon "+rot+" "+blau+" &";
-            system(ringdrossel.c_str());
-            std::string msg = "Succesfully edited Addon.";
-            sendStringToPeer(msg, peer);
-        }
-        if (argv[0] == "server")
-        {
-            if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
+            if (argv[0] == "nocount")
             {
-                std::string msg = "You are not a referee";
+                if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
+                {
+                    std::string msg = "You are not a referee";
+                    sendStringToPeer(msg, peer);
+                    return;
+                }
+                ServerConfig::m_count_supertournament_game = false;
+                std::string msg = "Counting disabled.";
                 sendStringToPeer(msg, peer);
-                return;
             }
-            std::string blau=ServerConfig::m_blue_team_name;
-            std::string rot=ServerConfig::m_red_team_name;
-            std::string ringdrossel="python3 supertournament_match_info.py "+argv[1]+" Server "+rot+" "+blau+" &";
-            system(ringdrossel.c_str());
-            std::string msg = "Succesfully edited Server.";
-            sendStringToPeer(msg, peer);
-        }
-        if (argv[0] == "referee")
-        {
-            if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
+            if (argv[0] == "setteams")
             {
-                std::string msg = "You are not a referee";
-                sendStringToPeer(msg, peer);
-                return;
+                if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
+                {
+                    std::string msg = "You are not a referee";
+                    sendStringToPeer(msg, peer);
+                    return;
+                }
+                if (argv[1] == "A" || argv[1] == "B" || argv[1] == "C" || argv[1] == "D" || argv[1] == "E" || argv[1] == "F" || argv[1] == "G")
+                {
+                    if (argv[2] == "A" || argv[2] == "B" || argv[2] == "C" || argv[2] == "D" || argv[2] == "E" || argv[2] == "F" || argv[2] == "G")
+                    {
+                        ServerConfig::m_red_team_name = argv[1];
+                        ServerConfig::m_blue_team_name = argv[2];
+                        std::string msg = "Next match will be " + argv[1] + " vs " + argv[2] + ".";
+                        sendStringToAllPeers(msg);
+                    }
+                }
+                else
+                {
+                    std::string msg = "Please use A, B, C or D as team name.";
+                    sendStringToPeer(msg, peer);
+                }
             }
-            std::string blau=ServerConfig::m_blue_team_name;
-            std::string rot=ServerConfig::m_red_team_name;
-            std::string ringdrossel="python3 supertournament_match_info.py "+argv[1]+" Referee "+rot+" "+blau+" &";
-            system(ringdrossel.c_str());
-            std::string msg = "Succesfully edited Referee.";
-            sendStringToPeer(msg, peer);
-        }
-        if (argv[0] == "video")
-        {
-            if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
+            if (argv[0] == "addon")
             {
-                std::string msg = "You are not a referee";
+                if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
+                {
+                    std::string msg = "You are not a referee";
+                    sendStringToPeer(msg, peer);
+                    return;
+                }
+                std::string blau = ServerConfig::m_blue_team_name;
+                std::string rot = ServerConfig::m_red_team_name;
+                std::string ringdrossel = "python3 supertournament_match_info.py " + argv[1] + " Addon " + rot + " " + blau + " &";
+                system(ringdrossel.c_str());
+                std::string msg = "Succesfully edited Addon.";
                 sendStringToPeer(msg, peer);
-                return;
             }
-            std::string blau=ServerConfig::m_blue_team_name;
-            std::string rot=ServerConfig::m_red_team_name;
-            std::string ringdrossel="python3 supertournament_match_info.py "+argv[1]+" Video "+rot+" "+blau+" &";
-            system(ringdrossel.c_str());
-            std::string msg = "Succesfully edited video link.";
-            sendStringToPeer(msg, peer);
-        }
-        if (argv[0] == "notes")
-        {
-            if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
+            if (argv[0] == "server")
             {
-                std::string msg = "You are not a referee";
+                if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
+                {
+                    std::string msg = "You are not a referee";
+                    sendStringToPeer(msg, peer);
+                    return;
+                }
+                std::string blau = ServerConfig::m_blue_team_name;
+                std::string rot = ServerConfig::m_red_team_name;
+                std::string ringdrossel = "python3 supertournament_match_info.py " + argv[1] + " Server " + rot + " " + blau + " &";
+                system(ringdrossel.c_str());
+                std::string msg = "Succesfully edited Server.";
                 sendStringToPeer(msg, peer);
-                return;
             }
-            std::string blau=ServerConfig::m_blue_team_name;
-            std::string rot=ServerConfig::m_red_team_name;
-            std::string ringdrossel="python3 supertournament_match_info.py "+argv[1]+" Notes "+rot+" "+blau+" &";
-            system(ringdrossel.c_str());
-            std::string msg = "Succesfully edited notes.";
-            sendStringToPeer(msg, peer);
-        }
-        if (argv[0] == "skip")
-        {
-            if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
+            if (argv[0] == "referee")
             {
-                std::string msg = "You are not a referee";
+                if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
+                {
+                    std::string msg = "You are not a referee";
+                    sendStringToPeer(msg, peer);
+                    return;
+                }
+                std::string blau = ServerConfig::m_blue_team_name;
+                std::string rot = ServerConfig::m_red_team_name;
+                std::string ringdrossel = "python3 supertournament_match_info.py " + argv[1] + " Referee " + rot + " " + blau + " &";
+                system(ringdrossel.c_str());
+                std::string msg = "Succesfully edited Referee.";
                 sendStringToPeer(msg, peer);
-                return;
             }
-	    ServerConfig::m_skip_end=true;
-            std::string msg = "Skipping end enabled.";
-            sendStringToPeer(msg, peer);
-        }
-        if (argv[0] == "noskip")
-        {
-            if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
+            if (argv[0] == "video")
             {
-                std::string msg = "You are not a referee";
+                if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
+                {
+                    std::string msg = "You are not a referee";
+                    sendStringToPeer(msg, peer);
+                    return;
+                }
+                std::string blau = ServerConfig::m_blue_team_name;
+                std::string rot = ServerConfig::m_red_team_name;
+                std::string ringdrossel = "python3 supertournament_match_info.py " + argv[1] + " Video " + rot + " " + blau + " &";
+                system(ringdrossel.c_str());
+                std::string msg = "Succesfully edited video link.";
                 sendStringToPeer(msg, peer);
-                return;
             }
-            ServerConfig::m_skip_end=false;
-            std::string msg = "Skipping end disabled.";
-            sendStringToPeer(msg, peer);
+            if (argv[0] == "notes")
+            {
+                if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
+                {
+                    std::string msg = "You are not a referee";
+                    sendStringToPeer(msg, peer);
+                    return;
+                }
+                std::string blau = ServerConfig::m_blue_team_name;
+                std::string rot = ServerConfig::m_red_team_name;
+                std::string ringdrossel = "python3 supertournament_match_info.py " + argv[1] + " Notes " + rot + " " + blau + " &";
+                system(ringdrossel.c_str());
+                std::string msg = "Succesfully edited notes.";
+                sendStringToPeer(msg, peer);
+            }
+            if (argv[0] == "skip")
+            {
+                if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
+                {
+                    std::string msg = "You are not a referee";
+                    sendStringToPeer(msg, peer);
+                    return;
+                }
+                ServerConfig::m_skip_end = true;
+                std::string msg = "Skipping end enabled.";
+                sendStringToPeer(msg, peer);
+            }
+            if (argv[0] == "noskip")
+            {
+                if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
+                {
+                    std::string msg = "You are not a referee";
+                    sendStringToPeer(msg, peer);
+                    return;
+                }
+                ServerConfig::m_skip_end = false;
+                std::string msg = "Skipping end disabled.";
+                sendStringToPeer(msg, peer);
+            }
         }
     }
 
     if (ServerConfig::m_super_tournament_qualification)
     {
+        if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
+        {
+            std::string msg = "You are not a referee";
+            sendStringToPeer(msg, peer);
+            return;
+        }
+
         if (argv[0] == "quali")
         {
-            if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
-            {
-                std::string msg = "You are not a referee";
-                sendStringToPeer(msg, peer);
-                return;
-            }
-
             if (argv.size() < 2)
             {
                 std::string msg = "Format: /quali {teams, next, match, game, add, remove, replace}";
@@ -8364,6 +8369,73 @@ void ServerLobby::handleServerCommand(Event* event,
             }
 
             updatePlayerList();
+        }
+        else if (argv[0] == "stop")
+        {
+            World* w = World::getWorld();
+            if (!w)
+                return;
+            SoccerWorld *sw = dynamic_cast<SoccerWorld*>(w);
+            sw->stop();
+            m_super_tourn_quali.gameState.gameStoppedAt(sw->getTime());
+            std::string msg = "The game is stopped.";
+            sendStringToAllPeers(msg);
+        }
+        else if (argv[0] == "go" || argv[0] == "play" || argv[0] == "resume")
+        {
+            World* w = World::getWorld();
+            if (!w)
+                return;
+            SoccerWorld *sw = dynamic_cast<SoccerWorld*>(w);
+            sw->resume();
+            m_super_tourn_quali.gameState.gameResumedAt(sw->getTime());
+            std::string msg = "The game is resumed.";
+            sendStringToAllPeers(msg);
+        }
+        else if (argv[0] == "lobby")
+        {
+            std::string set_field = m_set_field;
+            World* w = World::getWorld();
+            if (!w)
+                return;
+            SoccerWorld *sw = dynamic_cast<SoccerWorld*>(w);
+            m_super_tourn_quali.gameState.gameStoppedAt(sw->getTime());
+            m_super_tourn_quali.gameState.initGoals(sw->getScore(KART_TEAM_RED), sw->getScore(KART_TEAM_BLUE));
+            
+            sw->allToLobby();
+            std::string msg = "The game will be restarted or continued.";
+            sendStringToAllPeers(msg);
+            m_set_field = set_field;
+        }
+        else if (argv[0] == "init")
+        {
+            if (argv.size() != 4)
+            {
+                std::string msg = "Format: /init red_goals blue_goals minutes";
+                sendStringToPeer(msg, peer);
+                return;
+            }
+            int red_goals = 0, blue_goals = 0, minutes = 0;
+
+            for (int i = 1; i < 4; i++)
+            {
+                std::string param = argv[i];
+                if (!param.empty() && std::all_of(param.begin(), param.end(), ::isdigit))
+                {
+                    if (i == 1) red_goals = std::stoi(param);
+                    else if (i == 2) blue_goals = std::stoi(param);
+                    else if (i == 3) minutes = std::stoi(param);
+                }
+                else
+                {
+                    std::string msg = "Invalid parameters. Format: /init red_goals blue_goals minutes";
+                    sendStringToPeer(msg, peer);
+                    return;
+                }
+            }
+
+            m_super_tourn_quali.gameState.initGoals(red_goals, blue_goals);
+            m_super_tourn_quali.gameState.initRemainingTime(60.0f * minutes);
         }
     }
 
@@ -8518,7 +8590,7 @@ void ServerLobby::handleServerCommand(Event* event,
             sendStringToPeer(msg, peer);
             updatePlayerList();
         }
-	else if (argv[0] == "stop")
+        else if (argv[0] == "stop")
         {
             World* w = World::getWorld();
             if (!w)
@@ -9831,6 +9903,14 @@ void ServerLobby::updateWorldSettings()
             sw->setGoalScoringPolicy(2);
         else
             Log::warn("ServerLobby", "Soccer goals policy %s does not exist", policy.c_str());
+
+        if (ServerConfig::m_super_tournament_qualification && m_super_tourn_quali.gameState.pending())
+        {
+            sw->setTime(m_super_tourn_quali.gameState.getRemainingTime());
+            sw->setInitialCount(m_super_tourn_quali.gameState.getRedGoals(), m_super_tourn_quali.gameState.getBlueGoals());
+            sw->tellCount();
+            m_super_tourn_quali.gameState.initRemainingTime(0.0f);
+        }
     }
 }   // updateWorldSettings
 //-----------------------------------------------------------------------------   

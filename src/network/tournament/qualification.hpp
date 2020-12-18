@@ -32,6 +32,42 @@
 #include <vector>
 #include <map>
 
+class STQualiGameState
+{
+private:
+    int m_goals_red = 0;
+    int m_goals_blue = 0;
+    float m_remaining_time = 0.0f;
+
+public:
+    STQualiGameState() {};
+    virtual ~STQualiGameState() {};
+
+    int getRedGoals() { return m_goals_red; };
+    int getBlueGoals() { return m_goals_blue; };
+    float getRemainingTime() { return m_remaining_time; };
+
+    bool pending() { return m_remaining_time > 0; };
+
+    void initGoals(int red_goals, int blue_goals) 
+    {
+        m_goals_red = red_goals;
+        m_goals_blue = blue_goals;
+    };
+    void initRemainingTime(float seconds) 
+    { 
+        m_remaining_time = seconds;
+    };
+    void gameStoppedAt(float seconds) { m_remaining_time += seconds; };
+    void gameResumedAt(float seconds) { m_remaining_time -= seconds; };
+    void reset()
+    {
+        m_goals_red = 0;
+        m_goals_blue = 0;
+        m_remaining_time = 0.0f;
+    };
+};
+
 class SuperTournamentQualification
 {
 private:
@@ -46,6 +82,9 @@ public:
     SuperTournamentQualification();
     SuperTournamentQualification(std::string config_player_list); // config_player_list = "player1 player2 player3 ..."
     virtual ~SuperTournamentQualification();
+
+    // In case that the game is stopped / resumed
+    STQualiGameState gameState;
 
     const std::vector<std::string>& getPlayerList() const { return m_player_list; }
     void addPlayer(std::string player_name, int elo);

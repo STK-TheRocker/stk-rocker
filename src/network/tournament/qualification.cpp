@@ -24,11 +24,13 @@
 
 SuperTournamentQualification::SuperTournamentQualification()
 { 
-
+    gameState = STQualiGameState();
 }
 
 SuperTournamentQualification::SuperTournamentQualification(std::string config_player_list)
 {
+    gameState = STQualiGameState();
+
     std::vector<std::string> splits = StringUtils::split(config_player_list, ' ');
     for (auto &split : splits)
         m_player_list.push_back(split);
@@ -94,13 +96,12 @@ bool SuperTournamentQualification::canPlay(std::string player_name) const
 
 void SuperTournamentQualification::nextMatch()
 {
-    int num_matches = m_player_list.size() / 2;
-    m_match_index = (m_match_index + 1) % std::max(num_matches, 1);
-    //updateKartTeams();
+    setMatch(m_match_index + 1);
 }
 
 void SuperTournamentQualification::setMatch(int match_id)
 {
+    gameState.reset();
     int num_matches = m_player_list.size() / 2;
     m_match_index = match_id % std::max(num_matches, 1);
     //updateKartTeams();
@@ -137,17 +138,26 @@ int SuperTournamentQualification::getElo(std::string player_name) const
 
 void SuperTournamentQualification::updateElos(int red_goals, int blue_goals)
 {
-    if (m_player_list.size() < 2 * (m_match_index + 1)) return; // match n can't be evaluated with < 2*n players in the list :)
+    if (gameState.pending())
+    {
+        gameState.initGoals(red_goals, blue_goals);
+    }
+    else
+    {
+        gameState.reset();
 
-    std::string red_player = m_player_list[2 * m_match_index];
-    std::string blue_player = m_player_list[2 * m_match_index + 1];
+        if (m_player_list.size() < 2 * (m_match_index + 1)) return; // match n can't be evaluated with < 2*n players in the list :)
 
-    std::string message = "Match result: " + red_player + " " + std::to_string(red_goals) + "-" + std::to_string(blue_goals) + " " + blue_player;
-    Log::info("SuperTournamentQualification", message.c_str());
+        std::string red_player = m_player_list[2 * m_match_index];
+        std::string blue_player = m_player_list[2 * m_match_index + 1];
 
-    std::string fitis = "python3 super1vs1quali_update_elo.py "+ red_player + " " + blue_player + " " + std::to_string(m_player_elos[red_player]) + " " + std::to_string(m_player_elos[blue_player]) + " " + std::to_string(red_goals) + " " + std::to_string(blue_goals);
-    system(fitis.c_str());
-    readElosFromFile();
+        std::string message = "Match result: " + red_player + " " + std::to_string(red_goals) + "-" + std::to_string(blue_goals) + " " + blue_player;
+        Log::info("SuperTournamentQualification", message.c_str());
+
+        std::string fitis = "python3 super1vs1quali_update_elo.py " + red_player + " " + blue_player + " " + std::to_string(m_player_elos[red_player]) + " " + std::to_string(m_player_elos[blue_player]) + " " + std::to_string(red_goals) + " " + std::to_string(blue_goals);
+        system(fitis.c_str());
+        readElosFromFile();
+    }
 }
 
 void SuperTournamentQualification::readElosFromFile()
