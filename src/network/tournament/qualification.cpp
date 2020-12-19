@@ -163,10 +163,9 @@ void SuperTournamentQualification::updateElos(int red_goals, int blue_goals)
 void SuperTournamentQualification::readElosFromFile()
 {
      std::ifstream in_file("super1vs1quali_ranking.txt");
-     int elo;
-     std::string player;
-     std::string test="test test";
-     auto split=StringUtils::split(test,' ');
+     int elo = 0;
+     std::string player = "";
+     std::vector<std::string> split;
      if (in_file.is_open())
      {
          std::string line;

@@ -5109,6 +5109,7 @@ void ServerLobby::updatePlayerList(bool update_when_reset_server)
 		bool angry_host = isVIP(p);
         std::string os_type_str = version_os.second;
         auto profile_name = profile->getName();
+        auto user_name = StringUtils::wideToUtf8(profile->getName());
         // Add a Mobile emoji for mobile OS
         if (ServerConfig::m_expose_mobile && 
             (os_type_str == "iOS" || os_type_str == "Android"))
@@ -5118,10 +5119,11 @@ void ServerLobby::updatePlayerList(bool update_when_reset_server)
             profile_name = StringUtils::utf32ToWide({0x1F528}) + profile_name;
 		if (m_player_queue_limit > 0)
 		{
-			auto p_name = StringUtils::wideToUtf8(profile->getName()); 
-			stringw symbol = getQueueNumberIcon(p_name);
+			stringw symbol = getQueueNumberIcon(user_name);
 			profile_name = symbol + profile_name;
 		}
+        int elo = getPlayerElo(user_name);
+        if (elo >= 0) profile_name = profile_name + L" [" + std::to_wstring(elo).c_str() + L"]";
 
         pl->addUInt32(profile->getHostId()).addUInt32(profile->getOnlineId())
             .addUInt8(profile->getLocalPlayerId())
@@ -9792,6 +9794,43 @@ void ServerLobby::rotatePlayerQueue()
 	m_player_queue_rotatable = false;
 	updatePlayerList();
 }
+int ServerLobby::getPlayerElo(std::string username) const
+{
+    if (ServerConfig::m_super_tournament_qualification)
+        return m_super_tourn_quali.getElo(username);
+
+    if (ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_soccer)
+    {
+        // TODO: It's nonsense to read the elos from the database right here.
+        //       Better read the elos after each game and store them in a global variable.
+        std::string fileName = ServerConfig::m_rank_1vs1 ? "game_stat_1vs1.txt" : "soccer_ranking.txt";
+
+        std::ifstream in_file(fileName);
+        int elo = 0;
+        std::string player = "";
+        std::vector<std::string> split;
+        if (in_file.is_open())
+        {
+            std::string line;
+            std::getline(in_file, line);
+            while (std::getline(in_file, line))
+            {
+                split = StringUtils::split(line, ' ');
+                if (split.size() < 4) continue;
+                if (split[1] == "Played_Games") continue;
+                elo = int(stof(split[3]));
+                player = split[0];
+                if (player == username)
+                    return elo;
+            }
+        }
+        in_file.close();
+        return 1500;
+    }
+
+    return -1;
+}
+
 //-----------------------------------------------------------------------------
 bool ServerLobby::teamsBalanced()
 {

@@ -523,6 +523,7 @@ private:
 	irr::core::stringw getQueueNumberIcon(std::string &username) const;
 	void addDeletePlayersFromQueue(std::shared_ptr<STKPeer>& peer, bool add);
 	void rotatePlayerQueue();
+    int getPlayerElo(std::string username) const;
 	void init1vs1Ranking();
 	bool teamsBalanced();
     void loadTracksQueueFromConfig();
