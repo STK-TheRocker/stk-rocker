@@ -2702,7 +2702,8 @@ void ServerLobby::update(int ticks)
         exitGameState();
 		// Enable all tracks and karts again
 		m_set_kart.clear();
-        m_set_field = "";
+        if (!(ServerConfig::m_super_tournament_qualification && m_super_tourn_quali.gameState.pending()))
+            m_set_field = "";
         // Reset for next state usage
         resetPeersReady();
         // Set the delay before the server forces all clients to exit the race
@@ -2748,6 +2749,7 @@ void ServerLobby::update(int ticks)
         break;
     case RESULT_DISPLAY:
 		rotatePlayerQueue();
+
         if (checkPeersReady(true/*ignore_ai_peer*/) ||
             (int64_t)StkTime::getMonoTimeMs() > m_timeout.load())
         {
@@ -3743,9 +3745,26 @@ void ServerLobby::checkRaceFinished()
             
             if (ServerConfig::m_super_tournament_qualification)
             {
-                int red_goals = sw->getScore(KART_TEAM_RED);
-                int blue_goals = sw->getScore(KART_TEAM_BLUE);
+                int red_goals = sw->getTotalScore(KART_TEAM_RED);
+                int blue_goals = sw->getTotalScore(KART_TEAM_BLUE);
                 m_super_tourn_quali.updateElos(red_goals, blue_goals);
+
+                if (m_super_tourn_quali.gameState.pending())
+                {
+                    int total_seconds = (int)(m_super_tourn_quali.gameState.getRemainingTime());
+                    int minutes = total_seconds / 60;
+                    int seconds = total_seconds - 60 * minutes;
+                    m_fixed_lap = minutes + 1;
+                    if (seconds == 0 && m_super_tourn_quali.gameState.getRemainingTime() == total_seconds)
+                        m_fixed_lap--;
+
+                    std::string msg = "Additional time to play: " + std::to_string(minutes) + ":" + std::to_string(seconds);
+                    sendStringToAllPeers(msg);
+                }
+                else
+                {
+                    m_fixed_lap = ServerConfig::m_fixed_lap_count;
+                }
             }
         }
     }
@@ -8394,7 +8413,6 @@ void ServerLobby::handleServerCommand(Event* event,
         }
         else if (argv[0] == "lobby")
         {
-            std::string set_field = m_set_field;
             World* w = World::getWorld();
             if (!w)
                 return;
@@ -8405,7 +8423,6 @@ void ServerLobby::handleServerCommand(Event* event,
             sw->allToLobby();
             std::string msg = "The game will be restarted or continued.";
             sendStringToAllPeers(msg);
-            m_set_field = set_field;
         }
         else if (argv[0] == "init")
         {

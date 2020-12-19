@@ -202,6 +202,11 @@ public:
         return (int)(team == KART_TEAM_BLUE ? m_blue_scorers.size()
                                               : m_red_scorers.size());
     }
+    int getTotalScore(KartTeam team) const // score including init goals and excluding not-counted goals
+    {
+        return (int)(team == KART_TEAM_BLUE ? m_blue_scorers.size() - m_bad_blue_goals + m_init_blue_goals
+                                            : m_red_scorers.size()  - m_bad_red_goals  + m_init_red_goals);
+    }
     // ------------------------------------------------------------------------
     const std::vector<ScorerData>& getScorers(KartTeam team) const
        { return (team == KART_TEAM_BLUE ? m_blue_scorers : m_red_scorers); }
