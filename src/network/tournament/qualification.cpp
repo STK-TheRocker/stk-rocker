@@ -94,6 +94,11 @@ bool SuperTournamentQualification::canPlay(std::string player_name) const
     return (getKartTeam(player_name) != KART_TEAM_NONE) && (getMatchId(player_name) == m_match_index);
 }
 
+bool SuperTournamentQualification::isAlwaysSpectate(std::string player_name) const
+{
+    return getListIndex(player_name) < 0;
+}
+
 void SuperTournamentQualification::nextMatch()
 {
     setMatch(m_match_index + 1);

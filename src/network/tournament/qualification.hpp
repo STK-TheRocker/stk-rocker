@@ -91,6 +91,7 @@ public:
     void removePlayer(std::string player_name);
     void replacePlayer(std::string player_current, std::string player_new, int elo_new);
     bool canPlay(std::string player_name) const;
+    bool isAlwaysSpectate(std::string player_name) const;
 
     void nextMatch();
     void setMatch(int match_id);

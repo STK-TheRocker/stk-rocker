@@ -3745,6 +3745,10 @@ void ServerLobby::checkRaceFinished()
             
             if (ServerConfig::m_super_tournament_qualification)
             {
+                auto peers = STKHost::get()->getPeers();
+                for (auto peer : peers)
+                    peer->setAlwaysSpectate(false);
+
                 int red_goals = sw->getTotalScore(KART_TEAM_RED);
                 int blue_goals = sw->getTotalScore(KART_TEAM_BLUE);
                 m_super_tourn_quali.updateElos(red_goals, blue_goals);
@@ -4660,6 +4664,13 @@ void ServerLobby::handleUnencryptedConnection(std::shared_ptr<STKPeer> peer,
 		if (found)
 			peer->setAlwaysSpectate(false);
 	}
+
+    if (ServerConfig::m_super_tournament_qualification)
+    {
+        std::string username = StringUtils::wideToUtf8(online_name);
+        if (m_super_tourn_quali.isAlwaysSpectate(username))
+            peer->setAlwaysSpectate(true);
+    }
 
     // Check for password
     std::string password;
