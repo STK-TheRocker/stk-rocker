@@ -3745,9 +3745,9 @@ void ServerLobby::checkRaceFinished()
             
             if (ServerConfig::m_super_tournament_qualification)
             {
-                auto peers = STKHost::get()->getPeers();
-                for (auto peer : peers)
-                    peer->setAlwaysSpectate(false);
+                //auto peers = STKHost::get()->getPeers();
+                //for (auto peer : peers)
+                    //peer->setAlwaysSpectate(false);
 
                 int red_goals = sw->getTotalScore(KART_TEAM_RED);
                 int blue_goals = sw->getTotalScore(KART_TEAM_BLUE);
@@ -5029,7 +5029,7 @@ void ServerLobby::updatePlayerList(bool update_when_reset_server)
 
     if (update_when_reset_server)
     {
-        if (!ServerConfig::m_soccer_tournament && !ServerConfig::m_race_tournament && !ServerConfig::m_rank_soccer)
+        if (!ServerConfig::m_soccer_tournament && !ServerConfig::m_race_tournament && !ServerConfig::m_rank_soccer && !ServerConfig::m_super_tournament_qualification)
         {
             for (auto& peer : m_default_always_spectate_peers)
                 peer->setAlwaysSpectate(true);
@@ -8358,6 +8358,7 @@ void ServerLobby::handleServerCommand(Event* event,
                 }
 
                 m_super_tourn_quali.addPlayer(player_name, elo);
+                setAlwaysSpectate(player_name, false);
 
                 std::string msg = "Added player " + player_name + " with elo " + std::to_string(elo);
                 sendStringToPeer(msg, peer);
@@ -8372,6 +8373,7 @@ void ServerLobby::handleServerCommand(Event* event,
                 }
                 std::string player_name = argv[2];
                 m_super_tourn_quali.removePlayer(player_name);
+                setAlwaysSpectate(player_name, true);
 
                 std::string msg = "Removed player " + player_name;
                 sendStringToPeer(msg, peer);
@@ -8395,6 +8397,8 @@ void ServerLobby::handleServerCommand(Event* event,
                 }
 
                 m_super_tourn_quali.replacePlayer(player_current, player_new, elo_new);
+                setAlwaysSpectate(player_current, true);
+                setAlwaysSpectate(player_new, false);
 
                 std::string msg = "Player " + player_current + " is replaced by player " + player_new + " with elo " + std::to_string(elo_new);
                 sendStringToPeer(msg, peer);
@@ -9482,6 +9486,20 @@ void ServerLobby::setRandomField()
 
     std::string msg = "Next played field will be " + m_set_field;
     sendStringToAllPeers(msg);
+}
+//-----------------------------------------------------------------------------
+void ServerLobby::setAlwaysSpectate(std::string username, bool spectate)
+{
+    auto peers = STKHost::get()->getPeers();
+    for (auto peer : peers)
+    {
+        for (auto player : peer->getPlayerProfiles())
+        {
+            std::string player_name = StringUtils::wideToUtf8(player->getName());
+            if (player_name == username)
+                peer->setAlwaysSpectate(spectate);
+        }
+    }
 }
 //-----------------------------------------------------------------------------
 void ServerLobby::sendStringToPeer(std::string& s, std::shared_ptr<STKPeer>& peer) const

@@ -30,6 +30,7 @@ SuperTournamentQualification::SuperTournamentQualification()
 SuperTournamentQualification::SuperTournamentQualification(std::string config_player_list)
 {
     gameState = STQualiGameState();
+    readElosFromFile();
 
     std::vector<std::string> splits = StringUtils::split(config_player_list, ' ');
     for (auto &split : splits)
@@ -76,7 +77,6 @@ void SuperTournamentQualification::removePlayer(std::string player_name)
     if (player_idx == -1) return;
 
     m_player_list.erase(m_player_list.begin() + getListIndex(player_name));
-    m_player_elos.erase(player_name);
 }
 
 void SuperTournamentQualification::replacePlayer(std::string player_current, std::string player_new, int elo_new)
@@ -85,7 +85,6 @@ void SuperTournamentQualification::replacePlayer(std::string player_current, std
     if (player_idx == -1) return;
 
     m_player_list[player_idx] = player_new;
-    m_player_elos.erase(player_current);
     m_player_elos[player_new] = elo_new;
 }
 
