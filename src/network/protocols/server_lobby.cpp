@@ -8470,6 +8470,25 @@ void ServerLobby::handleServerCommand(Event* event,
 
             m_super_tourn_quali.gameState.initGoals(red_goals, blue_goals);
             m_super_tourn_quali.gameState.initRemainingTime(60.0f * minutes);
+            m_fixed_lap = minutes;
+
+            std::string msg = "Initialized the game for " + std::to_string(minutes) + " minutes with score " + 
+                              std::to_string(red_goals) + "-" + std::to_string(blue_goals);
+            sendStringToAllPeers(msg);
+        }
+        else if (argv[0] == "role")
+        {
+            if (argv.size() != 3 || (argv[2] != "j" && argv[2] != "p"))
+            {
+                std::string msg = "Format: /role player_name {j, p}";
+                sendStringToPeer(msg, peer);
+                return;
+            }
+            std::string username = argv[1];
+            if (argv[2] == "j")
+                m_tournament_referees.insert(username);
+            if (argv[2] == "p")
+                m_tournament_referees.erase(username);
         }
     }
 
@@ -9992,9 +10011,14 @@ void ServerLobby::updateWorldSettings()
         if (ServerConfig::m_super_tournament_qualification && m_super_tourn_quali.gameState.pending())
         {
             sw->setTime(m_super_tourn_quali.gameState.getRemainingTime());
-            sw->setInitialCount(m_super_tourn_quali.gameState.getRedGoals(), m_super_tourn_quali.gameState.getBlueGoals());
-            sw->tellCount();
             m_super_tourn_quali.gameState.initRemainingTime(0.0f);
+
+            int red_goals = m_super_tourn_quali.gameState.getRedGoals(), blue_goals = m_super_tourn_quali.gameState.getBlueGoals();
+            if (red_goals + blue_goals > 0)
+            {
+                sw->setInitialCount(red_goals, blue_goals);
+                sw->tellCount();
+            }
         }
     }
 }   // updateWorldSettings
