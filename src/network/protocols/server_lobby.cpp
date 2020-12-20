@@ -173,16 +173,16 @@ sqlite3_extension_init(sqlite3* db, char** pzErrMsg,
  */
 ServerLobby::ServerLobby() : LobbyProtocol()
 {
-	//ServerConfig::m_race_tournament = false;
-        //ServerConfig::m_super_tournament_qualification = true;
-	//ServerConfig::m_race_tournament_players = "P TheRocker Waldlaubsaengernest FabianF Samurai-Goroh108 Hyper-E J re342 Gelbbrauenlaubsaenger";
-	//ServerConfig::m_owner_less = true;
-	//ServerConfig::m_min_start_game_players = 1;
-	//ServerConfig::m_server_configurable = false;
-	//ServerConfig::m_start_game_counter = 180;
-	//ServerConfig::m_player_queue_limit = -1;
-	//ServerConfig::m_team_choosing = false;
-	//ServerConfig::m_rank_1vs1 = false;
+    //ServerConfig::m_race_tournament = false;
+    //ServerConfig::m_super_tournament_qualification = true;
+    //ServerConfig::m_race_tournament_players = "P TheRocker Waldlaubsaengernest FabianF Samurai-Goroh108 Hyper-E J re342 Gelbbrauenlaubsaenger";
+    //ServerConfig::m_owner_less = true;
+    //ServerConfig::m_min_start_game_players = 1;
+    //ServerConfig::m_server_configurable = false;
+    //ServerConfig::m_start_game_counter = 180;
+    //ServerConfig::m_player_queue_limit = -1;
+    //ServerConfig::m_team_choosing = false;
+    //ServerConfig::m_rank_1vs1 = false;
 
     m_client_server_host_id.store(0);
     m_lobby_players.store(0);
@@ -4824,6 +4824,10 @@ void ServerLobby::handleUnencryptedConnection(std::shared_ptr<STKPeer> peer,
                     player->setTeam(KART_TEAM_BLUE);
             }
         }
+        if (ServerConfig::m_super_tournament_qualification)
+        {
+            player->setTeam(m_super_tourn_quali.getKartTeam(utf8_name));
+        }
         peer->addPlayer(player);
     }
 
@@ -8349,7 +8353,7 @@ void ServerLobby::handleServerCommand(Event* event,
                     return;
                 }
                 std::string player_name = argv[2];
-                int elo = 1500;
+                int elo = -1;
                 if (argv.size() == 4)
                 {
                     std::string elo_string = argv[3];
@@ -8360,7 +8364,7 @@ void ServerLobby::handleServerCommand(Event* event,
                 m_super_tourn_quali.addPlayer(player_name, elo);
                 setAlwaysSpectate(player_name, false);
 
-                std::string msg = "Added player " + player_name + " with elo " + std::to_string(elo);
+                std::string msg = "Added player " + player_name;
                 sendStringToPeer(msg, peer);
             }
             else if (argv[1] == "remove")
@@ -8403,9 +8407,27 @@ void ServerLobby::handleServerCommand(Event* event,
                 std::string msg = "Player " + player_current + " is replaced by player " + player_new + " with elo " + std::to_string(elo_new);
                 sendStringToPeer(msg, peer);
             }
+            else if (argv[1] == "print")
+            {
+                if (argv.size() != 3 || (argv[2] != "current" && argv[2] != "all"))
+                {
+                    std::string msg = "Format: /quali print {current, all}";
+                    sendStringToPeer(msg, peer);
+                    return;
+                }
+                std::string msg = "";
+                for (auto player_name : m_super_tourn_quali.getPlayerList())
+                {
+                    bool print_player = argv[2] == "current" ? m_super_tourn_quali.canPlay(player_name) : true;
+                    if (print_player)
+                        msg += player_name + " ";
+                }
+                sendStringToPeer(msg, peer);
+            }
 
             updatePlayerList();
         }
+
         else if (argv[0] == "stop")
         {
             World* w = World::getWorld();
@@ -8472,7 +8494,7 @@ void ServerLobby::handleServerCommand(Event* event,
             m_super_tourn_quali.gameState.initRemainingTime(60.0f * minutes);
             m_fixed_lap = minutes;
 
-            std::string msg = "Initialized the game for " + std::to_string(minutes) + " minutes with score " + 
+            std::string msg = "Initialized game for " + std::to_string(minutes) + " minutes with score " + 
                               std::to_string(red_goals) + "-" + std::to_string(blue_goals);
             sendStringToAllPeers(msg);
         }

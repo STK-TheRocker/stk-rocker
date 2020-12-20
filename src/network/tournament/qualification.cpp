@@ -68,7 +68,9 @@ void SuperTournamentQualification::addPlayer(std::string player_name, int elo)
 {
     if (std::find(m_player_list.begin(), m_player_list.end(), player_name) == m_player_list.end())
         m_player_list.push_back(player_name);
-    m_player_elos[player_name] = elo;
+
+    if (elo != -1)
+        m_player_elos[player_name] = elo;
 }
 
 void SuperTournamentQualification::removePlayer(std::string player_name)
