@@ -4665,13 +4665,6 @@ void ServerLobby::handleUnencryptedConnection(std::shared_ptr<STKPeer> peer,
 			peer->setAlwaysSpectate(false);
 	}
 
-    if (ServerConfig::m_super_tournament_qualification)
-    {
-        std::string username = StringUtils::wideToUtf8(online_name);
-        if (m_super_tourn_quali.isAlwaysSpectate(username))
-            peer->setAlwaysSpectate(true);
-    }
-
     // Check for password
     std::string password;
     data.decodeString(&password);
@@ -4835,6 +4828,19 @@ void ServerLobby::handleUnencryptedConnection(std::shared_ptr<STKPeer> peer,
 
 	if (m_player_queue_limit > 0)
 		addDeletePlayersFromQueue(peer, true);
+
+    if (ServerConfig::m_super_tournament_qualification)
+    {
+        bool spectator = true;
+        for (auto player : peer->getPlayerProfiles())
+        {
+            std::string username = StringUtils::wideToUtf8(player->getName());
+            if (!m_super_tourn_quali.isAlwaysSpectate(username)) 
+                spectator = false;
+        }
+        if (spectator) 
+            peer->setAlwaysSpectate(true);
+    }
 
     // send a message to the one that asked to connect
     NetworkString* server_info = getNetworkString();
