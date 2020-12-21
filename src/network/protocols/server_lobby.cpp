@@ -177,7 +177,7 @@ ServerLobby::ServerLobby() : LobbyProtocol()
     //ServerConfig::m_super_tournament_qualification = true;
     //ServerConfig::m_race_tournament_players = "P TheRocker Waldlaubsaengernest FabianF Samurai-Goroh108 Hyper-E J re342 Gelbbrauenlaubsaenger";
     //ServerConfig::m_owner_less = true;
-    //ServerConfig::m_min_start_game_players = 1;
+    //ServerConfig::m_min_start_game_players = 2;
     //ServerConfig::m_server_configurable = false;
     //ServerConfig::m_start_game_counter = 180;
     //ServerConfig::m_player_queue_limit = -1;
@@ -1739,10 +1739,17 @@ void ServerLobby::asynchronousUpdate()
                     updatePlayerList();
                 m_timeout.store(std::numeric_limits<int64_t>::max());
             }
-            if ((!ServerConfig::m_soccer_tournament && !ServerConfig::m_race_tournament && !ServerConfig::m_rank_soccer &&
+
+            int active_players = 0;
+            for (auto peer : STKHost::get()->getPeers())
+            {
+                if (canRace(peer) && !peer->alwaysSpectate()) active_players++;
+            }
+            if ((!ServerConfig::m_soccer_tournament && !ServerConfig::m_super_tournament_qualification && 
+                 !ServerConfig::m_race_tournament && !ServerConfig::m_rank_soccer &&
                 m_timeout.load() < (int64_t)StkTime::getMonoTimeMs()) ||
                 (checkPeersReady(true/*ignore_ai_peer*/) &&
-                (int)players >= ServerConfig::m_min_start_game_players))
+                 active_players >= ServerConfig::m_min_start_game_players))
             {
                 resetPeersReady();
                 startSelection();
@@ -8270,7 +8277,7 @@ void ServerLobby::handleServerCommand(Event* event,
         {
             if (argv.size() < 2)
             {
-                std::string msg = "Format: /quali {teams, next, match, game, add, remove, replace}";
+                std::string msg = "Format: /quali {teams, next, match, add, remove, replace, print}";
                 sendStringToPeer(msg, peer);
                 return;
             }
@@ -9576,6 +9583,8 @@ bool ServerLobby::canRace(std::shared_ptr<STKPeer>& peer) const
 //-----------------------------------------------------------------------------
 bool ServerLobby::canRace(STKPeer* peer) const
 {
+    if (peer == NULL || peer->getPlayerProfiles().size() == 0) return false;
+
     std::string username = StringUtils::wideToUtf8(
         peer->getPlayerProfiles()[0]->getName());
 

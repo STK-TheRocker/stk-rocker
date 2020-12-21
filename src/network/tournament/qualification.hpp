@@ -73,7 +73,7 @@ class SuperTournamentQualification
 private:
     std::vector<std::string> m_player_list;
     std::map<std::string, int> m_player_elos;
-    int m_match_index = 0; // match0 = {player1, player2}, match1 = {player3, player4), ...
+    int m_match_index = -1; // match0 = {player1, player2}, match1 = {player3, player4), ...
 
     int getListIndex(std::string player_name) const;
     //void updateKartTeams();

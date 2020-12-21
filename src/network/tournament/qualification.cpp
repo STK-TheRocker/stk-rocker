@@ -76,7 +76,7 @@ void SuperTournamentQualification::addPlayer(std::string player_name, int elo)
 void SuperTournamentQualification::removePlayer(std::string player_name)
 {
     int player_idx = getListIndex(player_name);
-    if (player_idx == -1) return;
+    if (player_idx < 0) return;
 
     m_player_list.erase(m_player_list.begin() + getListIndex(player_name));
 }
@@ -84,7 +84,7 @@ void SuperTournamentQualification::removePlayer(std::string player_name)
 void SuperTournamentQualification::replacePlayer(std::string player_current, std::string player_new, int elo_new)
 {
     int player_idx = getListIndex(player_current);
-    if (player_idx == -1) return;
+    if (player_idx < 0) return;
 
     m_player_list[player_idx] = player_new;
     m_player_elos[player_new] = elo_new;
@@ -121,7 +121,7 @@ int SuperTournamentQualification::getCurrentMatchId() const
 int SuperTournamentQualification::getMatchId(std::string player_name) const
 {
     int listIndex = getListIndex(player_name);
-    return listIndex < 0 ? -1 : listIndex / 2;
+    return listIndex < 0 ? -2 : listIndex / 2; // return -2 instead of -1, to avoid conflicts with m_match_index = -1
 }
 
 KartTeam SuperTournamentQualification::getKartTeam(std::string player_name) const
@@ -153,6 +153,7 @@ void SuperTournamentQualification::updateElos(int red_goals, int blue_goals)
         gameState.reset();
 
         if (m_player_list.size() < 2 * (m_match_index + 1)) return; // match n can't be evaluated with < 2*n players in the list :)
+        if (m_match_index < 0) return;
 
         std::string red_player = m_player_list[2 * m_match_index];
         std::string blue_player = m_player_list[2 * m_match_index + 1];
@@ -160,7 +161,7 @@ void SuperTournamentQualification::updateElos(int red_goals, int blue_goals)
         std::string message = "Match result: " + red_player + " " + std::to_string(red_goals) + "-" + std::to_string(blue_goals) + " " + blue_player;
         Log::info("SuperTournamentQualification", message.c_str());
 
-        std::string fitis = "python3 super1vs1quali_update_elo.py " + red_player + " " + blue_player + " " + std::to_string(m_player_elos[red_player]) + " " + std::to_string(m_player_elos[blue_player]) + " " + std::to_string(red_goals) + " " + std::to_string(blue_goals);
+        std::string fitis = "python3 super1vs1quali_update_elo.py " + red_player + " " + blue_player + " " + std::to_string(getElo(red_player)) + " " + std::to_string(getElo(blue_player)) + " " + std::to_string(red_goals) + " " + std::to_string(blue_goals);
         system(fitis.c_str());
         readElosFromFile();
     }
@@ -191,7 +192,7 @@ void SuperTournamentQualification::readElosFromFile()
 
 void SuperTournamentQualification::sortPlayersByElo()
 {
-    m_match_index = 0; // after sorting the elos, the teams change
+    m_match_index = -1; // after sorting the elos, the teams change
 
     auto sort_rule = [this](std::string const player1, std::string const player2) -> bool
     {
