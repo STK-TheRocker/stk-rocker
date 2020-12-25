@@ -174,7 +174,7 @@ sqlite3_extension_init(sqlite3* db, char** pzErrMsg,
 ServerLobby::ServerLobby() : LobbyProtocol()
 {
     //ServerConfig::m_race_tournament = false;
-    //ServerConfig::m_super_tournament_qualification = true;
+    ServerConfig::m_super_tournament_qualification = false;
     //ServerConfig::m_race_tournament_players = "P TheRocker Waldlaubsaengernest FabianF Samurai-Goroh108 Hyper-E J re342 Gelbbrauenlaubsaenger";
     //ServerConfig::m_owner_less = true;
     //ServerConfig::m_min_start_game_players = 2;
@@ -183,6 +183,7 @@ ServerLobby::ServerLobby() : LobbyProtocol()
     //ServerConfig::m_player_queue_limit = -1;
     //ServerConfig::m_team_choosing = false;
     //ServerConfig::m_rank_1vs1 = false;
+    ServerConfig::m_rank_soccer = true;
 
     m_client_server_host_id.store(0);
     m_lobby_players.store(0);
@@ -2196,18 +2197,17 @@ void ServerLobby::liveJoinRequest(Event* event)
 		bool queuePlayerLimitReached = m_player_queue_limit > 0 && red + blue + m_pending_live_joiners.size() > m_player_queue_limit;
 		if (is1vs1Player) queuePlayerLimitReached = false;
                 
-	        bool in_ranklist = true;
+        bool in_ranklist = true;
 		if ( ServerConfig::m_rank_soccer)
 		{
-	            in_ranklist = false;
+            in_ranklist = false;
 		    std::string username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
-		    for (int i2=0 ; i2 < m_soccer_ranked_players.size() ; i2++)
-                    {
-                        if (m_soccer_ranked_players[i2].first==username)
-                        {
-	                    bool in_ranklist = true;
-                        }
-                    }
+
+            for (auto &name_elo : m_soccer_ranked_players)
+            {
+                if (name_elo.first == username)
+                    in_ranklist = true;
+            }
 		}
 
         if (used_id.size() != peer->getPlayerProfiles().size() || queuePlayerLimitReached || !(in_ranklist))
@@ -3007,7 +3007,7 @@ void ServerLobby::startSelection(const Event *event)
         if (ServerConfig::m_owner_less)
         {
             if (!m_allowed_to_start)
-	    {
+            {
                 std::string msg = "Starting the game is forbidden by server owner";
                 sendStringToPeer(msg, peer);
                 return;
@@ -3018,59 +3018,58 @@ void ServerLobby::startSelection(const Event *event)
                 sendStringToPeer(msg, peer);
                 return;
             }
-	    if (ServerConfig::m_rank_soccer)
-	    {
-		system("cp empty_rsp.txt current_ranked-soccer_players.txt");
+            if (ServerConfig::m_rank_soccer)
+            {
+                system("cp empty_rsp.txt current_ranked-soccer_players.txt");
                 peer->setAlwaysSpectate(false);
                 std::string peer_username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
 
 
                 std::ifstream in_file("soccer_ranking.txt");   //read Elo from file. Not optimal will maybe be optimized later.
-		std::string msg;
-		int elo=1500;
+                std::string msg;
+                int elo = 1500;
                 if (in_file.is_open())
                 {
                     std::string line;
-		    auto split=StringUtils::split(peer_username, ' ');
+                    auto split = StringUtils::split(peer_username, ' ');
                     while (std::getline(in_file, line))
                     {
-	                split = StringUtils::split(line, ' ');
-			if (split.size()<2) continue;
-			if (split[0]==peer_username)
-			{
-			    elo=std::stoi(split[1]);
-			}
+                        split = StringUtils::split(line, ' ');
+                        if (split.size() < 2) continue;
+                        if (split[0] == peer_username)
+                        {
+                            elo = std::stoi(split[1]);
+                        }
                     }
                 }
                 in_file.close();
 
                 // Check if player already pressed ready. If he unpress ready he is removed from the player list.
-		for (int i2=0 ; i2 < m_soccer_ranked_players.size() ; i2++)
-		{
-		    if (m_soccer_ranked_players[i2].first==peer_username)
-	            {
-			m_peers_ready.at(event->getPeerSP()) = !m_peers_ready.at(event->getPeerSP());
+                for (int i2 = 0; i2 < m_soccer_ranked_players.size(); i2++)
+                {
+                    if (m_soccer_ranked_players[i2].first == peer_username)
+                    {
+                        m_peers_ready.at(event->getPeerSP()) = !m_peers_ready.at(event->getPeerSP());
                         updatePlayerList();
-                        m_soccer_ranked_players.erase(m_soccer_ranked_players.begin()+i2);
-	                return;
-		    }
-		}
+                        m_soccer_ranked_players.erase(m_soccer_ranked_players.begin() + i2);
+                        return;
+                    }
+                }
 
-		m_soccer_ranked_players.push_back(std::pair<std::string, int>(peer_username,elo));  //insert the player 
+                m_soccer_ranked_players.push_back(std::pair<std::string, int>(peer_username, elo));  //insert the player 
 
-		int i3;
-		int min=1;
-		std::vector <std::pair<std::string, int>> player_copy = m_soccer_ranked_players;
-		if (m_soccer_ranked_players.size()%2==0)  // in this case the number of players in uneven. In this case ignorre the worst noob.
-		{
-		    for(i3=1;i3<player_copy.size();i3++)
-		    {
-		        if(player_copy[i3].second <= player_copy[min].second)
-			{
-			    min = i3;
-			}
-		    }
-	            player_copy.erase(m_soccer_ranked_players.begin() + min);
+                int min = 0;
+                std::vector <std::pair<std::string, int>> player_copy = m_soccer_ranked_players;
+                if (m_soccer_ranked_players.size() % 2 == 1)  // in this case the number of players in uneven. In this case ignore the worst noob.
+                {
+                    for (int i3 = 0; i3 < player_copy.size(); i3++)
+                    {
+                        if (player_copy[i3].second <= player_copy[min].second)
+                        {
+                            min = i3;
+                        }
+                    }
+                    player_copy.erase(player_copy.begin() + min);
                 }
 
                 auto teams = createBalancedTeams(player_copy);
@@ -3078,72 +3077,74 @@ void ServerLobby::startSelection(const Event *event)
 
                 std::string red_team = "";
                 for (auto &player : teams.first) red_team += player + " ";
-        	std::string blue_team = "";
-        	for (auto &player : teams.second) blue_team += player + " ";
-                msg = "Red Team:" + red_team+" Blue Team:"+ blue_team;
+                std::string blue_team = "";
+                for (auto &player : teams.second) blue_team += player + " ";
+                msg = "Red Team:" + red_team + " Blue Team:" + blue_team;
                 sendStringToPeer(msg, peer);
-		float random = rand();
+                float random = rand();
                 m_soccer_ranked_teams.clear();
-		std::string blue="blue";
-		std::string red="red";
+                std::string blue = "blue";
+                std::string red = "red";
                 for (auto peer2 : peers2)
                 {
                     for (auto player : peer2->getPlayerProfiles())
                     {
                         std::string username = std::string(StringUtils::wideToUtf8(player->getName()));
-			if (m_soccer_ranked_players.size()%2==1)
-			{
-			    if (username==m_soccer_ranked_players[min].first)
-		            {
-		                if (random>=0.5)
-				{
-				    peer2->getPlayerProfiles()[0]->setTeam(KART_TEAM_RED);
-		                    m_soccer_ranked_teams.push_back(std::pair<std::string, std::string>(username,red));
-				}
-				else
-				{
-				    peer2->getPlayerProfiles()[0]->setTeam(KART_TEAM_BLUE);
-		                    m_soccer_ranked_teams.push_back(std::pair<std::string, std::string>(username,blue));
-				}
-			    }
+                        if (m_soccer_ranked_players.size() % 2 == 1)
+                        {
+                            int min_idx = std::min(min, (int)m_soccer_ranked_players.size() - 1);
+                            if (username == m_soccer_ranked_players[min_idx].first)
+                            {
+                                if (random >= 0.5)
+                                {
+                                    player->setTeam(KART_TEAM_RED);
+                                    m_soccer_ranked_teams.push_back(std::pair<std::string, std::string>(username, red));
+                                }
+                                else
+                                {
+                                    player->setTeam(KART_TEAM_BLUE);
+                                    m_soccer_ranked_teams.push_back(std::pair<std::string, std::string>(username, blue));
+                                }
+                            }
 
-			}
+                        }
                         if (std::find(teams.first.begin(), teams.first.end(), username) != teams.first.end())
-			{
-                            peer2->getPlayerProfiles()[0]->setTeam(KART_TEAM_RED);
-		            m_soccer_ranked_teams.push_back(std::pair<std::string, std::string>(username,red));
+                        {
+                            player->setTeam(KART_TEAM_RED);
+                            m_soccer_ranked_teams.push_back(std::pair<std::string, std::string>(username, red));
                         }
                         if (std::find(teams.second.begin(), teams.second.end(), username) != teams.second.end())
-		        {
-                            peer2->getPlayerProfiles()[0]->setTeam(KART_TEAM_BLUE);
-		            m_soccer_ranked_teams.push_back(std::pair<std::string, std::string>(username,blue));
-			}
+                        {
+                            player->setTeam(KART_TEAM_BLUE);
+                            m_soccer_ranked_teams.push_back(std::pair<std::string, std::string>(username, blue));
+                        }
                     }
                 }
                 m_peers_ready.at(event->getPeerSP()) = !m_peers_ready.at(event->getPeerSP());
                 updatePlayerList();
-		return;
+                return;
             }
-             else
-             {
-                 m_peers_ready.at(event->getPeerSP()) =
-                     !m_peers_ready.at(event->getPeerSP());
-                 updatePlayerList();
-                 return;
-             }
-         }
-             if (!m_allowed_to_start) {
-                 std::string msg = "Starting the game is forbidden by server owner";
-                 sendStringToPeer(msg, peer);
-                 return;
-             }
-             if (peer != m_server_owner.lock())
-             {
-                 Log::warn("ServerLobby",
-                     "Client %d is not authorised to start selection.",
-                     event->getPeer()->getHostId());
-                 return;
-             }
+        }
+        else
+        {
+            m_peers_ready.at(event->getPeerSP()) =
+                !m_peers_ready.at(event->getPeerSP());
+            updatePlayerList();
+            return;
+        }
+         
+        if (!m_allowed_to_start) {
+            std::string msg = "Starting the game is forbidden by server owner";
+            sendStringToPeer(msg, peer);
+            return;
+        }
+        if (peer != m_server_owner.lock())
+        {
+            Log::warn("ServerLobby",
+                "Client %d is not authorised to start selection.",
+                event->getPeer()->getHostId());
+            return;
+        }
      }
 
     else
