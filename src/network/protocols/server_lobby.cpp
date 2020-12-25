@@ -889,9 +889,20 @@ void ServerLobby::handleChat(Event* event)
 		if (StringUtils::startsWith(message_utf8, player.first))
 		{
 			message = StringUtils::utf8ToWide(player.second.first) + message.subString(player.first.length(), message.size()-player.first.length());
+            message_utf8 = StringUtils::wideToUtf8(message);
 			break;
 		}
 	}
+
+    bool muted = false;
+    for (auto player : m_muted_players)
+    {
+        if (StringUtils::startsWith(message_utf8, player))
+        {
+            muted = true;
+            break;
+        }
+    }
 
     KartTeam target_team = KART_TEAM_NONE;
     if (event->data().size() > 0)
@@ -947,10 +958,12 @@ void ServerLobby::handleChat(Event* event)
         STKHost::get()->sendPacketToAllPeersWith(
             [game_started, sender_in_game, target_team, can_receive,
                 sender, team_speak, teams, tournament_limit,
-                important_players](STKPeer* p)
+                important_players, muted](STKPeer* p)
             {
                 if (sender == p)
                     return true;
+                if (muted)
+                    return false;
                 if (game_started)
                 {
                     if (p->isWaitingForGame() && !sender_in_game)
@@ -7541,6 +7554,50 @@ void ServerLobby::handleServerCommand(Event* event,
 			}
 		}
 	}
+    if (argv[0] == "mute")
+    {
+        if (isVIP(peer))
+        {
+            if (argv.size() != 2)
+            {
+                std::string msg = "Format: /mute [player_name]";
+                sendStringToPeer(msg, peer);
+                return;
+            }
+
+            std::string player_name = argv[1];
+            m_muted_players.insert(player_name);
+            std::string msg = "Player " + player_name + " is now muted.";
+            sendStringToPeer(msg, peer);
+            return;
+        }
+        else
+        {
+            return;
+        }
+    }
+    if (argv[0] == "unmute")
+    {
+        if (isVIP(peer))
+        {
+            if (argv.size() != 2)
+            {
+                std::string msg = "Format: /unmute [player_name]";
+                sendStringToPeer(msg, peer);
+                return;
+            }
+
+            std::string player_name = argv[1];
+            m_muted_players.erase(player_name);
+            std::string msg = "Player " + player_name + " is now unmuted.";
+            sendStringToPeer(msg, peer);
+            return;
+        }
+        else
+        {
+            return;
+        }
+    }
     if (argv[0] == "standings")
     {
         if (argv.size() > 1)

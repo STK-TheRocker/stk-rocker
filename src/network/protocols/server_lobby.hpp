@@ -375,6 +375,7 @@ private:
 	std::map<std::string, std::vector<std::string>> m_command_voters; // m_command_votes[command][usernames]
 
 	std::map<std::string, std::pair<std::string, std::string>> m_faked_players; // m_faked_players[username] = (fake_username, fake_country_code)
+    std::set<std::string> m_muted_players;
 
 	int m_player_queue_limit = -1;
 	bool m_player_queue_rotatable = false;
