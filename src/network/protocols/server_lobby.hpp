@@ -374,6 +374,9 @@ private:
 
 	std::map<std::string, std::vector<std::string>> m_command_voters; // m_command_votes[command][usernames]
 
+    std::set<std::string> m_vip_players;
+    std::set<std::string> m_trusted_players;
+
 	std::map<std::string, std::pair<std::string, std::string>> m_faked_players; // m_faked_players[username] = (fake_username, fake_country_code)
     std::set<std::string> m_muted_players;
 
@@ -521,6 +524,8 @@ private:
 	bool commandPermitted(std::string command, std::shared_ptr<STKPeer>& peer, bool hostRights);
 	bool isVIP(std::shared_ptr<STKPeer>& peer) const;
 	bool isVIP(STKPeer* peer) const;
+    bool isTrusted(std::shared_ptr<STKPeer>& peer) const;
+    bool isTrusted(STKPeer* peer) const;
 	int getQueueIndex(std::string &username) const;
 	irr::core::stringw getQueueNumberIcon(std::string &username) const;
 	void addDeletePlayersFromQueue(std::shared_ptr<STKPeer>& peer, bool add);

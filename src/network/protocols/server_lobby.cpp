@@ -274,6 +274,13 @@ ServerLobby::ServerLobby() : LobbyProtocol()
         std::string quali_players = ServerConfig::m_super_tournament_qualification_players; // "player1 player2 player3 ..."
         m_super_tourn_quali = SuperTournamentQualification(quali_players);
     }
+
+    std::vector<std::string> vip_players = StringUtils::split(ServerConfig::m_vip, ' ');
+    for (auto player : vip_players) m_vip_players.insert(player);
+
+    std::vector<std::string> trusted_players = StringUtils::split(ServerConfig::m_trusted_players, ' ');
+    for (auto player : trusted_players) m_trusted_players.insert(player);
+
     m_allowed_to_start = true;
     loadTracksQueueFromConfig();
     loadCustomScoring();
@@ -7121,6 +7128,8 @@ void ServerLobby::handleServerCommand(Event* event,
                 return;
             }
 
+            if (isTrusted(peer)) hostRights = true;
+
 			if (!commandPermitted(cmd, peer, hostRights)) return;
 
             Log::info("ServerLobby", "Player %s kicks %s using /kick", peer_username.c_str(), player_name.c_str());
@@ -7556,7 +7565,7 @@ void ServerLobby::handleServerCommand(Event* event,
 	}
     if (argv[0] == "mute")
     {
-        if (isVIP(peer))
+        if (isTrusted(peer))
         {
             if (argv.size() != 2)
             {
@@ -7567,6 +7576,8 @@ void ServerLobby::handleServerCommand(Event* event,
 
             std::string player_name = argv[1];
             m_muted_players.insert(player_name);
+
+            Log::info("ServerLobby", "Player %s has been muted by %s", player_name.c_str(), peer_username.c_str());
             std::string msg = "Player " + player_name + " is now muted.";
             sendStringToPeer(msg, peer);
             return;
@@ -7578,7 +7589,7 @@ void ServerLobby::handleServerCommand(Event* event,
     }
     if (argv[0] == "unmute")
     {
-        if (isVIP(peer))
+        if (isTrusted(peer))
         {
             if (argv.size() != 2)
             {
@@ -7589,6 +7600,8 @@ void ServerLobby::handleServerCommand(Event* event,
 
             std::string player_name = argv[1];
             m_muted_players.erase(player_name);
+
+            Log::info("ServerLobby", "Player %s has been unmuted by %s", player_name.c_str(), peer_username.c_str());
             std::string msg = "Player " + player_name + " is now unmuted.";
             sendStringToPeer(msg, peer);
             return;
@@ -9813,13 +9826,21 @@ bool ServerLobby::isVIP(STKPeer* peer) const
 {
 	std::string username = StringUtils::wideToUtf8(
 		peer->getPlayerProfiles()[0]->getName());
-        auto vips = StringUtils::split(ServerConfig::m_vip,' ');
-	for (int i=0;i<vips.size();i++)
-	{
-	    if (username==vips[i]) return true;
-	}
-	return false;
+
+    return m_vip_players.count(username);
 }   // isVIP
+//-----------------------------------------------------------------------------
+bool ServerLobby::isTrusted(std::shared_ptr<STKPeer>& peer) const
+{
+    return isTrusted(peer.get());
+}
+bool ServerLobby::isTrusted(STKPeer * peer) const
+{
+    std::string username = StringUtils::wideToUtf8(
+        peer->getPlayerProfiles()[0]->getName());
+
+    return m_vip_players.count(username) || m_tournament_referees.count(username) || m_trusted_players.count(username);
+} // isTrusted
 //-----------------------------------------------------------------------------
 int ServerLobby::getQueueIndex(std::string& username) const
 {

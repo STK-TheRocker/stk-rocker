@@ -102,6 +102,9 @@ namespace ServerConfig
     SERVER_CFG_PREFIX StringServerConfigParam m_vip
         SERVER_CFG_DEFAULT(StringServerConfigParam("TheRocker Gelbbrauenlaubsaenger Waldlaubsaengernest re342","vips","Name of VIPs."));
 
+    SERVER_CFG_PREFIX StringServerConfigParam m_trusted_players
+        SERVER_CFG_DEFAULT(StringServerConfigParam("", "trusted-players", "Name of trusted players."));
+
     SERVER_CFG_PREFIX StringServerConfigParam m_server_name
         SERVER_CFG_DEFAULT(StringServerConfigParam("STK Server", "server-name",
         "Name of server, encode in XML if you want to use unicode "
