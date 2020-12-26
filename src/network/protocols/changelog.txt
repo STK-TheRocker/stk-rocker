@@ -1,0 +1,251 @@
+814a815,816
+>     if (ServerConfig::m_rank_soccer) m_soccer_ranked_players.clear();
+> 
+892d893
+<             message_utf8 = StringUtils::wideToUtf8(message);
+897,906d897
+<     bool muted = false;
+<     for (auto player : m_muted_players)
+<     {
+<         if (StringUtils::startsWith(message_utf8, player))
+<         {
+<             muted = true;
+<             break;
+<         }
+<     }
+< 
+961c952
+<                 important_players, muted](STKPeer* p)
+---
+>                 important_players](STKPeer* p)
+965,966d955
+<                 if (muted)
+<                     return false;
+2200,2206c2189,2195
+< 	            in_ranklist = false;
+< 		    std::string username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
+<                     auto playersr=StringUtils::split(m_soccer_ranked_players,' ');
+< 		    for (int ivar=0;ivar<playersr.size();ivar++)
+< 		    {
+< 		        if (username==playersr[ivar]) in_ranklist=true;
+< 		    }
+---
+> 	            //in_ranklist = false;
+> 		    //std::string username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
+>                     //auto playersr=StringUtils::split(m_soccer_ranked_players,' ');
+> 		    //for (int ivar=0;ivar<playersr.size();ivar++)
+> 		    //{
+> 		    //    if (username==playersr[ivar]) in_ranklist=true;
+> 		    //}
+2691,2696d2679
+<         if (ServerConfig::m_rank_soccer)
+< 		{
+<             std::string singdrossel = "python3 current_ranked-soccer_players.py \"" + m_soccer_ranked_players + "\" \""+ m_soccer_ranked_elos + "\" &";
+<             system(singdrossel.c_str());
+<             Log::info("ServerLobbyRoom", "Adding players succesfully done.");
+< 		}
+2765,2766c2748
+<             m_soccer_ranked_players="";
+<             m_soccer_ranked_elos="";
+---
+>             m_soccer_ranked_players.clear();
+3028c3010,3012
+<                 std::ifstream in_file("soccer_ranking.txt");
+---
+> 
+> 
+>                 std::ifstream in_file("soccer_ranking.txt");   //read Elo from file. Not optimal will maybe be optimized later.
+3046,3048c3030,3032
+<                 sendStringToPeer(msg, peer);
+< 		auto players=StringUtils::split(m_soccer_ranked_players,' ');
+< 		for (int i2=0;i2<players.size();i2++)
+---
+> 
+>                 // Check if player already pressed ready. If he unpress ready he is removed from the player list.
+> 		for (int i2=0 ; i2 < m_soccer_ranked_players.size() ; i2++)
+3050c3034
+< 		    if (players[i2]==peer_username)
+---
+> 		    if (m_soccer_ranked_players[i2].first==peer_username)
+3053a3038
+>                         m_soccer_ranked_players.erase(m_soccer_ranked_players.begin()+i2);
+3058,3059c3043
+< 		m_soccer_ranked_players= m_soccer_ranked_players + " " + peer_username;
+< 		m_soccer_ranked_elos= m_soccer_ranked_elos + " " + std::to_string(elo);
+---
+> 		m_soccer_ranked_players.push_back(std::pair<std::string, int>(peer_username,elo));  //insert the player 
+3061,3065d3044
+< 
+< 		players=StringUtils::split(m_soccer_ranked_players,' ');
+< 		auto elos=StringUtils::split(m_soccer_ranked_elos,' ');
+<                 
+< 		int min=1;
+3067,3068c3046,3048
+< 		std::string player_copy="";
+< 		if (players.size()%2==0)  // in this case the number of players in uneven
+---
+> 		int min=1;
+> 		std::vector <std::pair<std::string, int>> player_copy = m_soccer_ranked_players;
+> 		if (m_soccer_ranked_players.size()%2==0)  // in this case the number of players in uneven. In this case ignorre the worst noob.
+3070c3050
+< 		    for(i3=1;i3<elos.size();i3++)
+---
+> 		    for(i3=1;i3<player_copy.size();i3++)
+3072c3052
+< 		        if(elos[i3] <= elos[min])
+---
+> 		        if(player_copy[i3].second <= player_copy[min].second)
+3077,3084c3057
+< 		    for (i3=1;i3<players.size();i3++)
+< 		    {
+< 			if (players[i3]==players[min]) continue;
+< 	                player_copy = player_copy + " " + players[i3];
+< 		    }
+< 		    players=StringUtils::split(player_copy,' ');
+< 		    msg=player_copy;
+<                     sendStringToPeer(msg, peer);
+---
+> 	            player_copy.erase(m_soccer_ranked_players.begin() + min);
+3086,3090d3058
+<                 std::vector<std::pair<std::string, int>> elo_players;
+< 		for(int i=1;i<std::min(players.size(),elos.size());i++)
+< 		{
+< 		    elo_players.push_back(std::pair<std::string, int>(players[i],std::stoi(elos[i])));
+< 		}
+3092c3060
+<                 auto teams = createBalancedTeams(elo_players);
+---
+>                 auto teams = createBalancedTeams(player_copy);
+3102c3070
+< 
+---
+>                 m_soccer_ranked_teams.clear();
+3108c3076
+< 			if (players.size()%2==1)
+---
+> 			if (m_soccer_ranked_players.size()%2==1)
+3110c3078
+< 			    if (username==players[min])
+---
+> 			    if (username==m_soccer_ranked_players[min].first)
+3112,3113c3080,3089
+< 		                if (random>=0.5) peer2->getPlayerProfiles()[0]->setTeam(KART_TEAM_RED);
+< 				else peer2->getPlayerProfiles()[0]->setTeam(KART_TEAM_BLUE);
+---
+> 		                if (random>=0.5)
+> 				{
+> 				    peer2->getPlayerProfiles()[0]->setTeam(KART_TEAM_RED);
+> 		                    m_soccer_ranked_teams.push_back(std::pair<std::string, std::string>(username,"red"));
+> 				}
+> 				else
+> 				{
+> 				    peer2->getPlayerProfiles()[0]->setTeam(KART_TEAM_BLUE);
+> 		                    m_soccer_ranked_teams.push_back(std::pair<std::string, std::string>(username,"blue"));
+> 				}
+3118a3095,3096
+> 		            m_soccer_ranked_teams.push_back(std::pair<std::string, std::string>(username,"red"));
+> 
+3120a3099
+> 		            m_soccer_ranked_teams.push_back(std::pair<std::string, std::string>(username,"blue"));
+4202,4205c4181,4183
+< 		
+<         if (RaceEventManager::get())
+<         {
+<             if (ServerConfig::m_save_goals && RaceEventManager::get()->isRunning())
+---
+> 	if (ServerConfig::m_rank_soccer && m_state.load()==WAITING_FOR_START_GAME)
+> 	{
+> 	    for (int i2=0 ; i2 < m_soccer_ranked_players.size() ; i2++)
+4207,4228c4185,4188
+<                 double phase = 0.0;
+<                 if (RaceManager::get()->hasTimeTarget())
+<                 {
+<                     phase = (RaceManager::get()->getTimeTarget() - World::getWorld()->getTime())/RaceManager::get()->getTimeTarget();
+<                 }
+<                 else
+<                 {
+<                     int red_scorers_count = 0; int blue_scorers_count = 0;
+<                     SoccerWorld *sw = dynamic_cast<SoccerWorld*>(World::getWorld());
+<                     if (sw)
+<                     {
+<                         red_scorers_count = sw->get_red_scorers_count();
+<                         blue_scorers_count = sw->get_blue_scorers_count();
+<                     }
+<                     phase = 1.0*std::max(red_scorers_count, blue_scorers_count)/RaceManager::get()->getMaxGoal();
+<                     std::string message = "red_scorers_cnt=" + std::to_string(red_scorers_count) + " / blue_scorers_cnt" + std::to_string(blue_scorers_count);
+<                     message += " / max_goll=" + std::to_string(RaceManager::get()->getMaxGoal());
+<                     Log::info("ServerLobby", message.c_str());
+<                 }
+<                 std::string message = "phase=" + std::to_string(phase);
+<                 Log::info("ServerLobby", message.c_str());
+<                 rem_gamescore3(name,phase);
+---
+>                if (m_soccer_ranked_players[i2].first==name)
+>                {
+>                    m_soccer_ranked_players.erase(m_soccer_ranked_players.begin() + i2);
+>                }
+4230c4190
+<         }
+---
+> 	}
+4843a4804,4812
+> 	if (ServerConfig::m_rank_soccer)
+> 	{    
+> 	    int i3=0;
+>             for (i3=0;i3<m_soccer_ranked_teams.size();i3++)
+>             {
+> 		if (utf8_name==m_soccer_ranked_teams[i3].first && m_soccer_ranked_teams[i3].second=="blue") player->setTeam(KART_TEAM_BLUE);
+> 		if (utf8_name==m_soccer_ranked_teams[i3].first && m_soccer_ranked_teams[i3].second=="red") player->setTeam(KART_TEAM_RED);
+> 	    }
+> 	}
+7557,7600d7525
+<     if (argv[0] == "mute")
+<     {
+<         if (isVIP(peer))
+<         {
+<             if (argv.size() != 2)
+<             {
+<                 std::string msg = "Format: /mute [player_name]";
+<                 sendStringToPeer(msg, peer);
+<                 return;
+<             }
+< 
+<             std::string player_name = argv[1];
+<             m_muted_players.insert(player_name);
+<             std::string msg = "Player " + player_name + " is now muted.";
+<             sendStringToPeer(msg, peer);
+<             return;
+<         }
+<         else
+<         {
+<             return;
+<         }
+<     }
+<     if (argv[0] == "unmute")
+<     {
+<         if (isVIP(peer))
+<         {
+<             if (argv.size() != 2)
+<             {
+<                 std::string msg = "Format: /unmute [player_name]";
+<                 sendStringToPeer(msg, peer);
+<                 return;
+<             }
+< 
+<             std::string player_name = argv[1];
+<             m_muted_players.erase(player_name);
+<             std::string msg = "Player " + player_name + " is now unmuted.";
+<             sendStringToPeer(msg, peer);
+<             return;
+<         }
+<         else
+<         {
+<             return;
+<         }
+<     }
+9963c9888,9889
+<                 elo = int(stof(split[3]));
+---
+>                 if (ServerConfig::m_rank_1vs1) elo = int(stof(split[3]));
+>                 if (ServerConfig::m_rank_soccer) elo = int(stof(split[1]));
+
