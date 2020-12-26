@@ -2986,7 +2986,8 @@ std::pair<std::vector<std::string>, std::vector<std::string>> ServerLobby::creat
 void ServerLobby::soccer_ranked_make_teams(std::pair<std::vector<std::string>, std::vector<std::string>> teams, int min)
 {
     auto peers2 = STKHost::get()->getPeers();
-    float random = rand();
+    int random = rand()%2;
+    std::string msg="";
     m_soccer_ranked_teams.clear();
     std::string blue = "blue";
     std::string red = "red";
@@ -3001,15 +3002,19 @@ void ServerLobby::soccer_ranked_make_teams(std::pair<std::vector<std::string>, s
                 int min_idx = std::min(min, (int)m_soccer_ranked_players.size() - 1);
                 if (username == m_soccer_ranked_players[min_idx].first)
                 {
-                    if (random >= 0.5)
+                    if (random == 1)
                     {
                         player->setTeam(KART_TEAM_RED);
                         m_soccer_ranked_teams.push_back(std::pair<std::string, std::string>(username, red));
+                        msg = "Player " + m_soccer_ranked_players[min_idx].first + " has been put in the red team. Random="+std::to_string(random);
+                        Log::info("ServerLobby", msg.c_str());
                     }
                     else
                     {
                         player->setTeam(KART_TEAM_BLUE);
                         m_soccer_ranked_teams.push_back(std::pair<std::string, std::string>(username, blue));
+                        msg = "Player " + m_soccer_ranked_players[min_idx].first + " has been put in the blue team. Random="+std::to_string(random);
+                        Log::info("ServerLobby", msg.c_str());
                     }
                 }
 
@@ -3156,6 +3161,7 @@ void ServerLobby::startSelection(const Event *event)
     {
         system("cp empty_rsp.txt current_ranked-soccer_players.txt");
         int elo=1500;
+	std::string msg="";
         for (auto peer_rdy : m_peers_ready)
         {
             auto peer = peer_rdy.first.lock();
@@ -3168,8 +3174,8 @@ void ServerLobby::startSelection(const Event *event)
                     m_soccer_ranked_players.push_back(std::pair<std::string, int>(username, elo));
                     //player->setTeam(KART_TEAM_RED);
 
-                    std::string msg = "Player " + username + " is in the coming ranked soccer match.";
-                    Log::debug("ServerLobby", msg.c_str());
+                    msg = "Player " + username + " is in the coming ranked soccer match.";
+                    Log::info("ServerLobby", msg.c_str());
                 }
             }
         }
@@ -3185,6 +3191,9 @@ void ServerLobby::startSelection(const Event *event)
                 }
             }
             player_copy.erase(player_copy.begin() + min);
+            int min_idx = std::min(min, (int)m_soccer_ranked_players.size() - 1);
+            msg = "Player " + m_soccer_ranked_players[min_idx].first + " has minimal ELO.";
+            Log::info("ServerLobby", msg.c_str());
         }
         auto teams = createBalancedTeams(player_copy);
         soccer_ranked_make_teams(teams, min);
