@@ -2983,7 +2983,7 @@ std::pair<std::vector<std::string>, std::vector<std::string>> ServerLobby::creat
 }
 
 
-void soccer_ranked_make_teams(std::vector <std::pair<std::string, int>> m_soccer_ranked_players ,std::vector <std::pair<std::string, std::string>> m_soccer_ranked_teams , std::pair<std::vector<std::string>, std::vector<std::string>> teams, int min)
+void ServerLobby::soccer_ranked_make_teams(std::pair<std::vector<std::string>, std::vector<std::string>> teams, int min)
 {
     auto peers2 = STKHost::get()->getPeers();
     float random = rand();
@@ -3155,7 +3155,7 @@ void ServerLobby::startSelection(const Event *event)
     if (ServerConfig::m_rank_soccer)
     {
         system("cp empty_rsp.txt current_ranked-soccer_players.txt");
-	int elo=1500;
+        int elo=1500;
         for (auto peer_rdy : m_peers_ready)
         {
             auto peer = peer_rdy.first.lock();
@@ -3164,7 +3164,7 @@ void ServerLobby::startSelection(const Event *event)
                 for (auto player : peer->getPlayerProfiles())
                 {
                     std::string username = StringUtils::wideToUtf8(player->getName());
-		    elo=getPlayerElo(username);
+                    elo=getPlayerElo(username);
                     m_soccer_ranked_players.push_back(std::pair<std::string, int>(username, elo));
                     //player->setTeam(KART_TEAM_RED);
 
@@ -3187,7 +3187,7 @@ void ServerLobby::startSelection(const Event *event)
             player_copy.erase(player_copy.begin() + min);
         }
         auto teams = createBalancedTeams(player_copy);
-	ServerLobby::soccer_ranked_make_teams(m_soccer_ranked_players , m_soccer_ranked_teams , teams , min);
+        soccer_ranked_make_teams(teams, min);
     }
 
     // // Disable always spectate peers if no players join the game
@@ -4791,15 +4791,15 @@ void ServerLobby::handleUnencryptedConnection(std::shared_ptr<STKPeer> peer,
         {
             player->setTeam(m_super_tourn_quali.getKartTeam(utf8_name));
         }
-	if (ServerConfig::m_rank_soccer)
-	{    
-	    int i3=0;
+	    if (ServerConfig::m_rank_soccer)
+	    {    
+            int i3=0;
             for (i3=0;i3<m_soccer_ranked_teams.size();i3++)
             {
-		if (utf8_name==m_soccer_ranked_teams[i3].first && m_soccer_ranked_teams[i3].second=="blue") player->setTeam(KART_TEAM_BLUE);
-		if (utf8_name==m_soccer_ranked_teams[i3].first && m_soccer_ranked_teams[i3].second=="red") player->setTeam(KART_TEAM_RED);
+                if (utf8_name==m_soccer_ranked_teams[i3].first && m_soccer_ranked_teams[i3].second=="blue") player->setTeam(KART_TEAM_BLUE);
+                if (utf8_name==m_soccer_ranked_teams[i3].first && m_soccer_ranked_teams[i3].second=="red") player->setTeam(KART_TEAM_RED);
+	        }
 	    }
-	}
         peer->addPlayer(player);
     }
 

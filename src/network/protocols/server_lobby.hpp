@@ -562,7 +562,7 @@ public:
     virtual void asynchronousUpdate() OVERRIDE;
 
     std::pair<std::vector<std::string>, std::vector<std::string>> createBalancedTeams(std::vector<std::pair<std::string, int>>& elo_players);
-    void soccer_ranked_make_teams(std::vector <std::pair<std::string, int>> m_soccer_ranked_players ,std::vector <std::pair<std::string, std::string>> m_soccer_ranked_teams , std::pair<std::vector<std::string>, std::vector<std::string>> teams, int min);
+    void soccer_ranked_make_teams(std::pair<std::vector<std::string>, std::vector<std::string>> teams, int min);
     void startSelection(const Event *event=NULL);
     void checkIncomingConnectionRequests();
     void finishedLoadingWorld() OVERRIDE;
