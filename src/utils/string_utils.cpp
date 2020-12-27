@@ -383,6 +383,19 @@ namespace StringUtils
             exit(1);
         }
     }   // splitPath
+    
+    // ------------------------------------------------------------------------
+
+    std::string join(std::vector<std::string> &v, std::string delimiter)
+    {
+        std::string s = "";
+        for (int i = 0; i < v.size(); i++)
+        {
+            if (i > 0) s += " ";
+            s += v[i];
+        }
+        return s;
+    }
 
     // ------------------------------------------------------------------------
     std::string insertValues(const std::string &s,

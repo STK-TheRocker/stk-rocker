@@ -91,13 +91,14 @@ private:
     std::vector<std::string> m_player_list;
     std::map<std::string, int> m_player_elos;
     int m_match_index = -1; // match0 = {player1, player2}, match1 = {player3, player4), ...
+    int m_team_size = 1; // 1 for 1v1 quali, 2 for 2v2 quali
 
     int getListIndex(std::string player_name) const;
     void updateKartTeams();
     
 public:
     SuperTournamentQualification();
-    SuperTournamentQualification(std::string config_player_list); // config_player_list = "player1 player2 player3 ..."
+    SuperTournamentQualification(std::string config_player_list, int team_size); // config_player_list = "player1 player2 player3 ..."
     virtual ~SuperTournamentQualification();
 
     // In case that the game is stopped / resumed

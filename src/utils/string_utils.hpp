@@ -63,6 +63,9 @@ namespace StringUtils
     std::vector<uint32_t>           splitToUInt(const std::string& s, char c,
                                                 bool keepSplitChar=false);
     std::vector<std::string>        splitPath(const std::string& path);
+
+    std::string join(std::vector<std::string> &v, std::string delimiter);
+
     std::string replace(const std::string& other, const std::string& from, const std::string& to);
 
     irr::core::stringw xmlDecode(const std::string& input);

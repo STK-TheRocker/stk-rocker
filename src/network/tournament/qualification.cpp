@@ -27,7 +27,7 @@ SuperTournamentQualification::SuperTournamentQualification()
     gameState = STQualiGameState();
 }
 
-SuperTournamentQualification::SuperTournamentQualification(std::string config_player_list)
+SuperTournamentQualification::SuperTournamentQualification(std::string config_player_list, int team_size)
 {
     gameState = STQualiGameState();
     readElosFromFile();
@@ -35,6 +35,8 @@ SuperTournamentQualification::SuperTournamentQualification(std::string config_pl
     std::vector<std::string> splits = StringUtils::split(config_player_list, ' ');
     for (auto &split : splits)
         m_player_list.push_back(split);
+
+    m_team_size = std::max(team_size, 1); // number of players per team cannot be smaller than 1
 }
 
 SuperTournamentQualification::~SuperTournamentQualification() { }
@@ -111,7 +113,7 @@ void SuperTournamentQualification::nextMatch()
 void SuperTournamentQualification::setMatch(int match_id)
 {
     gameState.reset();
-    int num_matches = m_player_list.size() / 2;
+    int num_matches = m_player_list.size() / (m_team_size * 2);
     m_match_index = match_id % std::max(num_matches, 1);
     updateKartTeams();
 }
@@ -124,7 +126,7 @@ int SuperTournamentQualification::getCurrentMatchId() const
 int SuperTournamentQualification::getMatchId(std::string player_name) const
 {
     int listIndex = getListIndex(player_name);
-    return listIndex < 0 ? -2 : listIndex / 2; // return -2 instead of -1, to avoid conflicts with m_match_index = -1
+    return listIndex < 0 ? -2 : listIndex / (m_team_size * 2); // return -2 instead of -1, to avoid conflicts with m_match_index = -1
 }
 
 KartTeam SuperTournamentQualification::getKartTeam(std::string player_name) const
@@ -132,7 +134,7 @@ KartTeam SuperTournamentQualification::getKartTeam(std::string player_name) cons
     if (getMatchId(player_name) == m_match_index)
     {
         int listIndex = getListIndex(player_name);
-        if (listIndex % 2 == 0)
+        if (listIndex % (m_team_size * 2) < m_team_size)
             return KART_TEAM_RED;
         else
             return KART_TEAM_BLUE;
@@ -155,42 +157,68 @@ void SuperTournamentQualification::updateElos(int red_goals, int blue_goals)
     {
         gameState.reset();
 
-        if (m_player_list.size() < 2 * (m_match_index + 1)) return; // match n can't be evaluated with < 2*n players in the list :)
+        if (m_player_list.size() < m_team_size * 2 * (m_match_index + 1)) return; // match n can't be evaluated with < t*2*n players in the list :)
         if (m_match_index < 0) return;
 
-        std::string red_player = m_player_list[2 * m_match_index];
-        std::string blue_player = m_player_list[2 * m_match_index + 1];
+        std::vector<std::string> red_players(m_player_list.begin() + m_team_size * 2 * m_match_index, 
+                                             m_player_list.begin() + m_team_size * (2 * m_match_index + 1));
 
-        std::string message = "Match result: " + red_player + " " + std::to_string(red_goals) + "-" + std::to_string(blue_goals) + " " + blue_player;
+        std::vector<std::string> blue_players(m_player_list.begin() + m_team_size * (2 * m_match_index + 1),
+                                              m_player_list.begin() + m_team_size * 2 * (m_match_index + 1));
+
+        std::string red_player_str = StringUtils::join(red_players, " ");
+        std::string blue_player_str = StringUtils::join(blue_players, " ");
+
+        std::string message = "Match result: " + red_player_str + " " + std::to_string(red_goals) + "-" + std::to_string(blue_goals) + " " + blue_player_str;
         Log::info("SuperTournamentQualification", message.c_str());
 
-        std::string fitis = "python3 super1vs1quali_update_elo.py " + red_player + " " + blue_player + " " + std::to_string(getElo(red_player)) + " " + std::to_string(getElo(blue_player)) + " " + std::to_string(red_goals) + " " + std::to_string(blue_goals);
-        system(fitis.c_str());
+        if (m_team_size == 1)
+        {
+            std::string fitis = "python3 super1vs1quali_update_elo.py " + red_player_str + " " + blue_player_str + " " + std::to_string(getElo(red_player_str)) + " " + std::to_string(getElo(blue_player_str)) + " " + std::to_string(red_goals) + " " + std::to_string(blue_goals);
+            system(fitis.c_str());
+        }
+
+        if (m_team_size == 2)
+        {
+            // TODO Write a script for updating elos of 2v2 quali :-)
+
+            // red_player_str = "red1 red2" / blue_player_str = "blue1 blue2"
+            // elo_red = getElo(red_players[0]) / elo_blue = getElo(blue_players[0]) ... works because elo(red1) = elo(red2) and elo(blue1) = elo(blue2)
+        }
+
         readElosFromFile();
     }
 }
 
 void SuperTournamentQualification::readElosFromFile()
 {
-     std::ifstream in_file("super1vs1quali_ranking.txt");
-     int elo = 0;
-     std::string player = "";
-     std::vector<std::string> split;
-     if (in_file.is_open())
-     {
-         std::string line;
-         std::getline(in_file, line);
-         while (std::getline(in_file, line))
-         {
-             split = StringUtils::split(line, ' ');
-             if (split.size()<4) continue;
-             if (split[1]=="Played_Games") continue;
-             elo=int(stof(split[3]));
-             player=split[0];
-             m_player_elos[player]=elo;
-         }
-     }
-     in_file.close();
+    if (m_team_size == 1)
+    {
+        std::ifstream in_file("super1vs1quali_ranking.txt");
+        int elo = 0;
+        std::string player = "";
+        std::vector<std::string> split;
+        if (in_file.is_open())
+        {
+            std::string line;
+            std::getline(in_file, line);
+            while (std::getline(in_file, line))
+            {
+                split = StringUtils::split(line, ' ');
+                if (split.size() < 4) continue;
+                if (split[1] == "Played_Games") continue;
+                elo = int(stof(split[3]));
+                player = split[0];
+                m_player_elos[player] = elo;
+            }
+        }
+        in_file.close();
+    }
+
+    if (m_team_size == 2)
+    {
+        // TODO Read in the elos for 2v2 ranking :-)
+    }
 }
 
 void SuperTournamentQualification::sortPlayersByElo()

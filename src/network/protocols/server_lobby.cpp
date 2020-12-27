@@ -175,6 +175,7 @@ ServerLobby::ServerLobby() : LobbyProtocol()
 {
     //ServerConfig::m_race_tournament = false;
     //ServerConfig::m_super_tournament_qualification = true;
+    //ServerConfig::m_super_tournament_qualification_team_size = 2;
     //ServerConfig::m_race_tournament_players = "P TheRocker Waldlaubsaengernest FabianF Samurai-Goroh108 Hyper-E J re342 Gelbbrauenlaubsaenger";
     //ServerConfig::m_owner_less = true;
     //ServerConfig::m_min_start_game_players = 2;
@@ -273,7 +274,8 @@ ServerLobby::ServerLobby() : LobbyProtocol()
     if (ServerConfig::m_super_tournament_qualification)
     {
         std::string quali_players = ServerConfig::m_super_tournament_qualification_players; // "player1 player2 player3 ..."
-        m_super_tourn_quali = SuperTournamentQualification(quali_players);
+        int team_size = ServerConfig::m_super_tournament_qualification_team_size; // 1 for 1vs1, 2 for 2vs2
+        m_super_tourn_quali = SuperTournamentQualification(quali_players, team_size);
     }
 
     std::vector<std::string> vip_players = StringUtils::split(ServerConfig::m_vip, ' ');
@@ -8338,9 +8340,11 @@ void ServerLobby::handleServerCommand(Event* event,
 
             if (argv[1] == "teams")
             {
-                if (m_super_tourn_quali.getPlayerList().size() % 2 != 0)
+                int team_size = ServerConfig::m_super_tournament_qualification_team_size;
+                team_size = std::max(team_size, 1);
+                if (m_super_tourn_quali.getPlayerList().size() % (2 * team_size) != 0)
                 {
-                    std::string msg = "The number of matches must be a multiple of 2.";
+                    std::string msg = "The number of matches must be a multiple of " + std::to_string(2 * team_size) + ".";
                     sendStringToPeer(msg, peer);
                     return;
                 }

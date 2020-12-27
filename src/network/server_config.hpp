@@ -125,6 +125,10 @@ namespace ServerConfig
 	SERVER_CFG_PREFIX StringServerConfigParam m_super_tournament_qualification_players
 		SERVER_CFG_DEFAULT(StringServerConfigParam("", "super-tournament-qualification-players", 
 		"Format: player1 player2 player3 ..."));
+
+    SERVER_CFG_PREFIX IntServerConfigParam m_super_tournament_qualification_team_size
+        SERVER_CFG_DEFAULT(IntServerConfigParam(1, "super-tournament-qualification-team-size",
+            "1 for 1vs1 qualification, 2 for 2vs2 qualification"));
         
     SERVER_CFG_PREFIX BoolServerConfigParam m_rank_1vs1
         SERVER_CFG_DEFAULT(BoolServerConfigParam(false, "rank-1vs1",
