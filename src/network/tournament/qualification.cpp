@@ -180,7 +180,8 @@ void SuperTournamentQualification::updateElos(int red_goals, int blue_goals)
 
         if (m_team_size == 2)
         {
-            // TODO Write a script for updating elos of 2v2 quali :-)
+            std::string fitis = "python3 super1vs1quali_update_elo.py \"" + red_player_str + "\" \"" + blue_player_str + "\" " + std::to_string(getElo(red_players[0])) + " " + std::to_string(getElo(blue_players[0])) + " " + std::to_string(red_goals) + " " + std::to_string(blue_goals);
+            system(fitis.c_str());
 
             // red_player_str = "red1 red2" / blue_player_str = "blue1 blue2"
             // elo_red = getElo(red_players[0]) / elo_blue = getElo(blue_players[0]) ... works because elo(red1) = elo(red2) and elo(blue1) = elo(blue2)
@@ -192,33 +193,27 @@ void SuperTournamentQualification::updateElos(int red_goals, int blue_goals)
 
 void SuperTournamentQualification::readElosFromFile()
 {
-    if (m_team_size == 1)
+    std::ifstream in_file;
+    if (m_team_size == 1) in_file = std::ifstream("super1vs1quali_ranking.txt");
+    if (m_team_size == 2) in_file = std::ifstream("super2vs2quali_ranking.txt");
+    int elo = 0;
+    std::string player = "";
+    std::vector<std::string> split;
+    if (in_file.is_open())
     {
-        std::ifstream in_file("super1vs1quali_ranking.txt");
-        int elo = 0;
-        std::string player = "";
-        std::vector<std::string> split;
-        if (in_file.is_open())
+        std::string line;
+        std::getline(in_file, line);
+        while (std::getline(in_file, line))
         {
-            std::string line;
-            std::getline(in_file, line);
-            while (std::getline(in_file, line))
-            {
-                split = StringUtils::split(line, ' ');
-                if (split.size() < 4) continue;
-                if (split[1] == "Played_Games") continue;
-                elo = int(stof(split[3]));
-                player = split[0];
-                m_player_elos[player] = elo;
-            }
+            split = StringUtils::split(line, ' ');
+            if (split.size() < 4) continue;
+            if (split[1] == "Played_Games") continue;
+            elo = int(stof(split[3]));
+            player = split[0];
+            m_player_elos[player] = elo;
         }
-        in_file.close();
     }
-
-    if (m_team_size == 2)
-    {
-        // TODO Read in the elos for 2v2 ranking :-)
-    }
+    in_file.close();
 }
 
 void SuperTournamentQualification::sortPlayersByElo()
