@@ -3071,9 +3071,21 @@ void ServerLobby::startSelection(const Event *event)
             }
             if (!canRace(peer))
             {
-                std::string msg = "You cannot play so pressing ready has no action";
-                sendStringToPeer(msg, peer);
-                return;
+                if (m_set_field == "" || serverAndPeerHaveTrack(peer, m_set_field))
+                {
+                    std::string msg = "You cannot play so pressing ready has no action";
+                    sendStringToPeer(msg, peer);
+                    return;
+                }
+                else
+                {
+                    std::string addon_id = m_set_field;
+                    if (addon_id.size() >= 6 && addon_id.substr(0, 6) == "addon_")
+                        addon_id = addon_id.substr(6, addon_id.size());
+                    std::string msg = "You need to install the addon " + addon_id + " in order to play";
+                    sendStringToPeer(msg, peer);
+                    return;
+                }
             }
             else
             {
@@ -9547,9 +9559,13 @@ void ServerLobby::superTournamentQualiUpdateKartTeams()
 //-----------------------------------------------------------------------------
 void ServerLobby::setRandomField()
 {
-    std::srand(std::time(nullptr));
     std::vector<std::string> available_fields;
-    int category = std::rand() % 5;
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> category_distrib(0, 4);
+    int category = category_distrib(gen);
+
     switch (category)
     {
         case 0: // Icy
@@ -9569,11 +9585,12 @@ void ServerLobby::setRandomField()
                                                          "addon_hole-drop", "addon_inapit", "addon_math-class",
                                                          "addon_mountain-soccer--updated-", "addon_nitro-soccer-field", "addon_soccer-arena-x",
                                                          "addon_syncopia-stadium", "addon_vivid-vacuum", "addon_zen" };
-            break;
+        break;
     }
     if (category > 1 && available_fields.size() > 0)
     {
-        int selected_field = std::rand() % available_fields.size();
+        std::uniform_int_distribution<> field_distrib(0, available_fields.size() - 1);
+        int selected_field = field_distrib(gen);
         m_set_field = available_fields[selected_field];
     }
 
