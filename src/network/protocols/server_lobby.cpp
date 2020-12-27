@@ -8343,7 +8343,6 @@ void ServerLobby::handleServerCommand(Event* event,
 
                 m_super_tourn_quali.readElosFromFile();
                 m_super_tourn_quali.sortPlayersByElo();
-                superTournamentQualiUpdateKartTeams();
 
                 std::string msg = "New teams created.";
                 sendStringToPeer(msg, peer);
@@ -8359,7 +8358,6 @@ void ServerLobby::handleServerCommand(Event* event,
 
                 // Give a kart team to the players of the next match
                 m_super_tourn_quali.nextMatch();
-                superTournamentQualiUpdateKartTeams();
 
                 std::string matchIdxStr = std::to_string(m_super_tourn_quali.getCurrentMatchId());
                 std::string msg1 = "Ready to start game " + matchIdxStr + " for " + std::to_string(m_fixed_lap) + " minutes.";
@@ -8399,7 +8397,6 @@ void ServerLobby::handleServerCommand(Event* event,
                     return;
                 }
                 m_super_tourn_quali.setMatch(matchIdx);
-                superTournamentQualiUpdateKartTeams();
 
                 std::string msg1 = "Ready to start game " + matchIdxStr + " for " + std::to_string(m_fixed_lap) + " minutes.";
                 sendStringToAllPeers(msg1);
@@ -8466,7 +8463,6 @@ void ServerLobby::handleServerCommand(Event* event,
                 m_super_tourn_quali.replacePlayer(player_current, player_new, elo_new);
                 setAlwaysSpectate(player_current, true);
                 setAlwaysSpectate(player_new, false);
-                superTournamentQualiUpdateKartTeams();
 
                 std::string msg = "Player " + player_current + " is replaced by player " + player_new;
                 sendStringToPeer(msg, peer);
@@ -9540,22 +9536,6 @@ void ServerLobby::changeColors()
     }
     updatePlayerList();
 }   // changeColors
-void ServerLobby::superTournamentQualiUpdateKartTeams()
-{
-    if (ServerConfig::m_super_tournament_qualification)
-    {
-        auto peers = STKHost::get()->getPeers();
-        for (auto peer : peers)
-        {
-            for (auto player : peer->getPlayerProfiles())
-            {
-                std::string player_name = StringUtils::wideToUtf8(player->getName());
-                KartTeam kart_team = m_super_tourn_quali.getKartTeam(player_name);
-                player->setTeam(kart_team);
-            }
-        }
-    }
-}
 //-----------------------------------------------------------------------------
 void ServerLobby::setRandomField()
 {

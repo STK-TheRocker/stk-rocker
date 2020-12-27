@@ -93,7 +93,7 @@ private:
     int m_match_index = -1; // match0 = {player1, player2}, match1 = {player3, player4), ...
 
     int getListIndex(std::string player_name) const;
-    //void updateKartTeams();
+    void updateKartTeams();
     
 public:
     SuperTournamentQualification();

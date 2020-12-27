@@ -511,7 +511,6 @@ private:
     void initTournamentPlayers();
     void initRaceTournamentPlayers();
     void changeColors();
-    void superTournamentQualiUpdateKartTeams();
     void setRandomField();
     void setAlwaysSpectate(std::string username, bool spectate);
     void sendStringToPeer(std::string& s, std::shared_ptr<STKPeer>& peer) const;
