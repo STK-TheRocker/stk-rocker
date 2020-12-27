@@ -86,12 +86,24 @@ void SuperTournamentQualification::replacePlayer(std::string player_current, std
 {
     int player_idx = getListIndex(player_current);
     if (player_idx < 0) return;
+    if (getListIndex(player_new) >= 0) return;
 
     m_player_list[player_idx] = player_new;
 
     if (elo_new != -1)
         m_player_elos[player_new] = elo_new;
 
+    if (m_substitutions.count(player_current))
+    {
+        if (player_new != m_substitutions[player_current])
+            m_substitutions[player_new] = m_substitutions[player_current];
+        m_substitutions.erase(player_current);
+    }
+    else
+    {
+        m_substitutions[player_new] = player_current;
+    }
+        
     updateKartTeams();
 }
 
@@ -180,11 +192,17 @@ void SuperTournamentQualification::updateElos(int red_goals, int blue_goals)
 
         if (m_team_size == 2)
         {
-            std::string fitis = "python3 super1vs1quali_update_elo.py \"" + red_player_str + "\" \"" + blue_player_str + "\" " + std::to_string(getElo(red_players[0])) + " " + std::to_string(getElo(blue_players[0])) + " " + std::to_string(red_goals) + " " + std::to_string(blue_goals);
+            if (!m_substitutions.empty())
+            {
+                for (int i = 0; i < red_players.size(); i++)
+                    if (m_substitutions.count(red_players[i])) red_players[i] = m_substitutions[red_players[i]] + "#" + red_players[i];
+                for (int i = 0; i < blue_players.size(); i++)
+                    if (m_substitutions.count(blue_players[i])) blue_players[i] = m_substitutions[blue_players[i]] + "#" + blue_players[i];
+                red_player_str = StringUtils::join(red_players, " ");
+                blue_player_str = StringUtils::join(blue_players, " ");
+            }
+            std::string fitis = "python3 super2vs2quali_update_elo.py \"" + red_player_str + "\" \"" + blue_player_str + "\" " + std::to_string(getElo(red_players[0])) + " " + std::to_string(getElo(blue_players[0])) + " " + std::to_string(red_goals) + " " + std::to_string(blue_goals);
             system(fitis.c_str());
-
-            // red_player_str = "red1 red2" / blue_player_str = "blue1 blue2"
-            // elo_red = getElo(red_players[0]) / elo_blue = getElo(blue_players[0]) ... works because elo(red1) = elo(red2) and elo(blue1) = elo(blue2)
         }
 
         readElosFromFile();
@@ -220,9 +238,13 @@ void SuperTournamentQualification::sortPlayersByElo()
 {
     m_match_index = -1; // after sorting the elos, the teams change
 
-    auto sort_rule = [this](std::string const player1, std::string const player2) -> bool
+    std::map<std::string, int> list_indices;
+    for (int i = 0; i < m_player_list.size(); i++) list_indices[m_player_list[i]] = i;
+
+    auto sort_rule = [this, list_indices](std::string const player1, std::string const player2) -> bool
     {
-        return getElo(player1) > getElo(player2);
+        int elo1 = getElo(player1), elo2 = getElo(player2);
+        return elo1 != elo2 ? elo1 > elo2 : list_indices.at(player1) < list_indices.at(player2);
     };
     
     std::sort(m_player_list.begin(), m_player_list.end(), sort_rule);

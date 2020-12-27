@@ -90,6 +90,7 @@ class SuperTournamentQualification
 private:
     std::vector<std::string> m_player_list;
     std::map<std::string, int> m_player_elos;
+    std::map<std::string, std::string> m_substitutions;
     int m_match_index = -1; // match0 = {player1, player2}, match1 = {player3, player4), ...
     int m_team_size = 1; // 1 for 1v1 quali, 2 for 2v2 quali
 
