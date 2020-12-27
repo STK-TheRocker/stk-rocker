@@ -8443,7 +8443,7 @@ void ServerLobby::handleServerCommand(Event* event,
                 }
                 std::string player_current = argv[2];
                 std::string player_new = argv[3];
-                int elo_new = 1500;
+                int elo_new = -1;
                 if (argv.size() == 5)
                 {
                     std::string elo_string = argv[4];
@@ -8454,8 +8454,9 @@ void ServerLobby::handleServerCommand(Event* event,
                 m_super_tourn_quali.replacePlayer(player_current, player_new, elo_new);
                 setAlwaysSpectate(player_current, true);
                 setAlwaysSpectate(player_new, false);
+                superTournamentQualiUpdateKartTeams();
 
-                std::string msg = "Player " + player_current + " is replaced by player " + player_new + " with elo " + std::to_string(elo_new);
+                std::string msg = "Player " + player_current + " is replaced by player " + player_new;
                 sendStringToPeer(msg, peer);
             }
             else if (argv[1] == "print")

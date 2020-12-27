@@ -87,7 +87,9 @@ void SuperTournamentQualification::replacePlayer(std::string player_current, std
     if (player_idx < 0) return;
 
     m_player_list[player_idx] = player_new;
-    m_player_elos[player_new] = elo_new;
+
+    if (elo_new != -1)
+        m_player_elos[player_new] = elo_new;
 }
 
 bool SuperTournamentQualification::canPlay(std::string player_name) const
