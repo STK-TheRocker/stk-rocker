@@ -38,6 +38,7 @@ private:
     int m_goals_red = 0;
     int m_goals_blue = 0;
     float m_remaining_time = 0.0f;
+    bool m_game_stopped = false;
 
 public:
     STQualiGameState() {};
@@ -57,14 +58,30 @@ public:
     void initRemainingTime(float seconds) 
     { 
         m_remaining_time = seconds;
+        m_game_stopped = false;
     };
-    void gameStoppedAt(float seconds) { m_remaining_time += seconds; };
-    void gameResumedAt(float seconds) { m_remaining_time -= seconds; };
+    void gameStoppedAt(float seconds) 
+    { 
+        if (!m_game_stopped)
+        {
+            m_remaining_time += seconds;
+            m_game_stopped = true;
+        }
+    };
+    void gameResumedAt(float seconds) 
+    { 
+        if (m_game_stopped)
+        {
+            m_remaining_time -= seconds;
+            m_game_stopped = false;
+        }
+    };
     void reset()
     {
         m_goals_red = 0;
         m_goals_blue = 0;
         m_remaining_time = 0.0f;
+        m_game_stopped = false;
     };
 };
 

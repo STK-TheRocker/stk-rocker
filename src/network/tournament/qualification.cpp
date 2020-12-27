@@ -144,7 +144,7 @@ int SuperTournamentQualification::getElo(std::string player_name) const
 
 void SuperTournamentQualification::updateElos(int red_goals, int blue_goals)
 {
-    if (gameState.pending())
+    if (gameState.pending()) // after /lobby command, init the goals
     {
         gameState.initGoals(red_goals, blue_goals);
     }

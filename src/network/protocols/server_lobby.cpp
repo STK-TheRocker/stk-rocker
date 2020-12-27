@@ -174,7 +174,7 @@ sqlite3_extension_init(sqlite3* db, char** pzErrMsg,
 ServerLobby::ServerLobby() : LobbyProtocol()
 {
     //ServerConfig::m_race_tournament = false;
-    ServerConfig::m_super_tournament_qualification = false;
+    //ServerConfig::m_super_tournament_qualification = true;
     //ServerConfig::m_race_tournament_players = "P TheRocker Waldlaubsaengernest FabianF Samurai-Goroh108 Hyper-E J re342 Gelbbrauenlaubsaenger";
     //ServerConfig::m_owner_less = true;
     //ServerConfig::m_min_start_game_players = 2;
@@ -183,7 +183,7 @@ ServerLobby::ServerLobby() : LobbyProtocol()
     //ServerConfig::m_player_queue_limit = -1;
     //ServerConfig::m_team_choosing = false;
     //ServerConfig::m_rank_1vs1 = false;
-    ServerConfig::m_rank_soccer = true;
+    //ServerConfig::m_rank_soccer = false;
 
     m_client_server_host_id.store(0);
     m_lobby_players.store(0);
