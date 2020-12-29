@@ -30,13 +30,13 @@ SuperTournamentQualification::SuperTournamentQualification()
 SuperTournamentQualification::SuperTournamentQualification(std::string config_player_list, int team_size)
 {
     gameState = STQualiGameState();
+    
+    m_team_size = std::max(team_size, 1); // number of players per team cannot be smaller than 1
     readElosFromFile();
 
     std::vector<std::string> splits = StringUtils::split(config_player_list, ' ');
     for (auto &split : splits)
         m_player_list.push_back(split);
-
-    m_team_size = std::max(team_size, 1); // number of players per team cannot be smaller than 1
 }
 
 SuperTournamentQualification::~SuperTournamentQualification() { }

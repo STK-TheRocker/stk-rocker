@@ -2211,10 +2211,17 @@ void ServerLobby::liveJoinRequest(Event* event)
         {
             in_ranklist = false;
             std::string username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
+	    std::string fitis;
             for (auto &name_elo : m_soccer_ranked_players)
             {
                 if (name_elo.first == username)
                     in_ranklist = true;
+		    for (auto &name_team : m_soccer_ranked_teams)
+		        if (name_team.first == username)
+			{
+		            fitis = "python3 add_ranked-soccer_live-joiner.py "+username+" "+name_team.second;
+			    system(fitis.c_str());
+		        }
             }
         }
 
