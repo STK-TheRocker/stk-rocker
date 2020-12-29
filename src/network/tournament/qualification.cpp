@@ -86,12 +86,14 @@ void SuperTournamentQualification::replacePlayer(std::string player_current, std
 {
     int player_idx = getListIndex(player_current);
     if (player_idx < 0) return;
-    if (getListIndex(player_new) >= 0) return;
+    if (m_team_size > 1 && getListIndex(player_new) >= 0) return; // substitutions with current players is only possible in 1v1 quali due to team elo conflict
 
     m_player_list[player_idx] = player_new;
 
     if (elo_new != -1)
         m_player_elos[player_new] = elo_new;
+    else if (m_team_size > 1)
+        m_player_elos[player_new] = getElo(player_current);
 
     if (m_substitutions.count(player_current))
     {
@@ -105,6 +107,28 @@ void SuperTournamentQualification::replacePlayer(std::string player_current, std
     }
         
     updateKartTeams();
+}
+
+void SuperTournamentQualification::resetSubstitutions()
+{
+    for (auto sub_original : m_substitutions)
+    {
+        int player_idx = getListIndex(sub_original.first);
+        if (player_idx < 0) continue;
+        m_player_list[player_idx] = sub_original.second;
+    }
+
+    m_substitutions.clear();
+    readElosFromFile();
+}
+
+void SuperTournamentQualification::removeAllPlayers()
+{
+    m_player_list.clear();
+    m_player_elos.clear();
+    m_substitutions.clear();
+    m_match_index = -1;
+    readElosFromFile();
 }
 
 bool SuperTournamentQualification::canPlay(std::string player_name) const

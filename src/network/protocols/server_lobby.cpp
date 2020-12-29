@@ -8340,7 +8340,7 @@ void ServerLobby::handleServerCommand(Event* event,
         {
             if (argv.size() < 2)
             {
-                std::string msg = "Format: /quali {teams, next, match, add, remove, replace, print}";
+                std::string msg = "Format: /quali {teams, next, match, add, remove, replace, reset-subs, reset, print}";
                 sendStringToPeer(msg, peer);
                 return;
             }
@@ -8480,6 +8480,32 @@ void ServerLobby::handleServerCommand(Event* event,
                 setAlwaysSpectate(player_new, false);
 
                 std::string msg = "Player " + player_current + " is replaced by player " + player_new;
+                sendStringToPeer(msg, peer);
+            }
+            else if (argv[1] == "reset-subs")
+            {
+                if (argv.size() != 2)
+                {
+                    std::string msg = "Format: /quali reset-subs";
+                    sendStringToPeer(msg, peer);
+                    return;
+                }
+                m_super_tourn_quali.resetSubstitutions();
+
+                std::string msg = "Substitudes have been resetted successfully.";
+                sendStringToPeer(msg, peer);
+            }
+            else if (argv[1] == "reset")
+            {
+                if (argv.size() != 2)
+                {
+                    std::string msg = "Format: /quali reset";
+                    sendStringToPeer(msg, peer);
+                    return;
+                }
+                m_super_tourn_quali.removeAllPlayers();
+
+                std::string msg = "Player list has been resetted successfully.";
                 sendStringToPeer(msg, peer);
             }
             else if (argv[1] == "print")
