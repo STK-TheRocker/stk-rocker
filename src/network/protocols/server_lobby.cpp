@@ -3127,7 +3127,7 @@ void ServerLobby::startSelection(const Event *event)
     }
 
     if (/*!ServerConfig::m_owner_less &&*/ ServerConfig::m_team_choosing &&
-        !ServerConfig::m_free_teams && RaceManager::get()->teamEnabled())
+        !ServerConfig::m_free_teams && RaceManager::get()->teamEnabled() && !ServerConfig::m_rank_soccer)
     {
         //auto red_blue = STKHost::get()->getAllPlayersTeamInfo();
         //bool badTeams = (red_blue.first == 0 || red_blue.second == 0) && (red_blue.first + red_blue.second != 1);

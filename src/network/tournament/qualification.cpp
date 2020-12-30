@@ -218,12 +218,13 @@ void SuperTournamentQualification::updateElos(int red_goals, int blue_goals)
         {
             if (!m_substitutions.empty())
             {
+		auto red_players_new = red_players; auto blue_players_new = blue_players;
                 for (int i = 0; i < red_players.size(); i++)
-                    if (m_substitutions.count(red_players[i])) red_players[i] = m_substitutions[red_players[i]] + "#" + red_players[i];
+                    if (m_substitutions.count(red_players[i])) red_players_new[i] = m_substitutions[red_players[i]] + "#" + red_players[i];
                 for (int i = 0; i < blue_players.size(); i++)
-                    if (m_substitutions.count(blue_players[i])) blue_players[i] = m_substitutions[blue_players[i]] + "#" + blue_players[i];
-                red_player_str = StringUtils::join(red_players, " ");
-                blue_player_str = StringUtils::join(blue_players, " ");
+                    if (m_substitutions.count(blue_players[i])) blue_players_new[i] = m_substitutions[blue_players[i]] + "#" + blue_players[i];
+                red_player_str = StringUtils::join(red_players_new, " ");
+                blue_player_str = StringUtils::join(blue_players_new, " ");
             }
             std::string fitis = "python3 super2vs2quali_update_elo.py \"" + red_player_str + "\" \"" + blue_player_str + "\" " + std::to_string(getElo(red_players[0])) + " " + std::to_string(getElo(blue_players[0])) + " " + std::to_string(red_goals) + " " + std::to_string(blue_goals);
             system(fitis.c_str());
