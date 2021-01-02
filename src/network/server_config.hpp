@@ -680,6 +680,14 @@ namespace ServerConfig
         "white-list",
         "For a private server, a list of players who can enter with "
         "any password. Works only for online accounts."));
+    
+    SERVER_CFG_PREFIX StringServerConfigParam m_whitelist
+        SERVER_CFG_DEFAULT(StringServerConfigParam("",
+        "whitelist",
+        "For a non-private server, a list of players who can enter."));
+
+    SERVER_CFG_PREFIX BoolServerConfigParam m_has_whitelist
+        SERVER_CFG_DEFAULT(BoolServerConfigParam(false, "has-whitelist","has-whitelist"));
 
     SERVER_CFG_PREFIX BoolServerConfigParam m_expose_mobile
         SERVER_CFG_DEFAULT(BoolServerConfigParam(true, "expose-mobile",

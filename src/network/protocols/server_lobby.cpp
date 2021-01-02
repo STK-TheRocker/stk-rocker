@@ -2215,13 +2215,17 @@ void ServerLobby::liveJoinRequest(Event* event)
             for (auto &name_elo : m_soccer_ranked_players)
             {
                 if (name_elo.first == username)
+		{
                     in_ranklist = true;
 		    for (auto &name_team : m_soccer_ranked_teams)
+	            {
 		        if (name_team.first == username)
 			{
 		            fitis = "python3 add_ranked-soccer_live-joiner.py "+username+" "+name_team.second;
 			    system(fitis.c_str());
 		        }
+		    }
+	        }
             }
         }
 
@@ -4707,6 +4711,21 @@ void ServerLobby::handleUnencryptedConnection(std::shared_ptr<STKPeer> peer,
         delete message;
         Log::verbose("ServerLobby", "Player refused: incorrect password");
         return;
+    }
+
+    if (ServerConfig::m_has_whitelist)
+    {
+        std::string username = StringUtils::wideToUtf8(online_name);
+        auto names_of_players=StringUtils::split(ServerConfig::m_whitelist,' ');
+	bool found=false;
+	for (int i=0;i<names_of_players.size();i++)
+	{
+	    if (names_of_players[i]==username) found=true;
+	}
+	if (!found)
+	{
+	    return;
+	}
     }
 
     // Check again max players and duplicated player in ranked server,
@@ -7304,6 +7323,18 @@ void ServerLobby::handleServerCommand(Event* event,
         (StringUtils::utf8ToWide(m_available_commands));
         peer->sendPacket(chat, true/*reliable*/);
         delete chat;
+    }
+    if (argv[0] == "white")
+    {
+        ServerConfig::m_has_whitelist=true;
+        std::string msg = "White list mode is now on.";
+        sendStringToPeer(msg, peer);
+    }
+    if (argv[0] == "nowhite")
+    {
+        ServerConfig::m_has_whitelist=false;
+        std::string msg = "White list mode is now off.";
+        sendStringToPeer(msg, peer);
     }
     if (argv[0] == "gnu2addtrack")
     {
