@@ -2773,9 +2773,12 @@ void ServerLobby::update(int ticks)
             if (ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3) system("python3 update_wiki.py 1vs1 &");
             else system("python3 update_wiki.py 3vs3 &");
         }
-        if (ServerConfig::m_super_tournament && ServerConfig::m_count_supertournament_game && !(ServerConfig::m_skip_end))
+	if (ServerConfig::m_super_tournament && ServerConfig::m_count_supertournament_game && !(ServerConfig::m_skip_end))
         {
-            std::string redname = ServerConfig::m_red_team_name;
+            std::string redname=ServerConfig::m_red_team_name;
+            std::string bluename=ServerConfig::m_blue_team_name;
+            std::string singdrossel="python3 supertournament_gameresult.py "+redname+' '+bluename;
+            system(singdrossel.c_str());
         }
         if (ServerConfig::m_rank_soccer)
         {
