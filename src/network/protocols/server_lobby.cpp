@@ -6966,6 +6966,7 @@ void ServerLobby::handleServerCommand(Event* event,
                 sendStringToPeer(msg, peer);
                 return;
             }
+	    if (ServerConfig::m_rank_soccer) peer->getPlayerProfiles()[0]->setTeam(KART_TEAM_NONE);
             peer->setAlwaysSpectate(true);
         }
         else
