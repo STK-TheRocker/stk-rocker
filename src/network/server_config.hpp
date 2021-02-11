@@ -118,6 +118,14 @@ namespace ServerConfig
         SERVER_CFG_DEFAULT(BoolServerConfigParam(false, "super-tournament",
         "Set up for advanced supertournament options."));
 
+    SERVER_CFG_PREFIX BoolServerConfigParam m_super_mp_quali
+        SERVER_CFG_DEFAULT(BoolServerConfigParam(false, "super-mp-quali",
+        "Supertournament Multiplayer Quali"));
+
+    SERVER_CFG_PREFIX StringServerConfigParam m_super_mp_quali_players
+        SERVER_CFG_DEFAULT(StringServerConfigParam("", "super-mp-quali-players",
+        "Supertournament Multiplayer Quali Players"));
+
 	SERVER_CFG_PREFIX BoolServerConfigParam m_super_tournament_qualification
 		SERVER_CFG_DEFAULT(BoolServerConfigParam(false, "super-tournament-qualification",
 		"Set up for SuperTournament qualification"));

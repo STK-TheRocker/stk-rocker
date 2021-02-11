@@ -826,6 +826,28 @@ void ServerLobby::setup()
 
     // Initialise the data structures to detect if all clients and 
     // the server are ready:
+    
+    if (ServerConfig::m_super_mp_quali)
+    {
+        auto peers = STKHost::get()->getPeers();
+        for (auto peer : peers)
+	{	
+            std::string utf8_name = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
+            auto player = peer->getPlayerProfiles()[0];
+	    bool found=false;
+            auto quali_players=StringUtils::split(ServerConfig::m_super_mp_quali_players,' ');
+            int i4;
+            for (i4=0;i4 < quali_players.size();i4++)
+            {
+                if (utf8_name==quali_players[i4]) found=true;
+            }
+            if (!found)
+            {
+                player->setTeam(KART_TEAM_NONE);
+                peer->setAlwaysSpectate(true);
+            }
+	}
+    }
     resetPeersReady();
     m_timeout.store(std::numeric_limits<int64_t>::max());
     m_server_started_at = m_server_delay = 0;
@@ -2222,6 +2244,7 @@ void ServerLobby::liveJoinRequest(Event* event)
 		        if (name_team.first == username)
 			{
 		            fitis = "python3 add_ranked-soccer_live-joiner.py "+username+" "+name_team.second;
+		            if (ServerConfig::m_super_mp_quali) fitis = "python3 add_super_mp_quali_live-joiner.py "+username+" "+name_team.second;
 			    system(fitis.c_str());
 		        }
 		    }
@@ -2765,6 +2788,7 @@ void ServerLobby::update(int ticks)
         if (ServerConfig::m_rank_soccer)
         {
             std::string singdrossel = "python3 update_elo_ranked-soccer-DB.py " + std::to_string(ServerConfig::m_spielzeit);
+            if (ServerConfig::m_super_mp_quali) singdrossel = "python3 update_elo_super_mp_quali.py " + std::to_string(ServerConfig::m_spielzeit);
             system(singdrossel.c_str());
         }
 
@@ -3194,7 +3218,8 @@ void ServerLobby::startSelection(const Event *event)
 
     if (ServerConfig::m_rank_soccer)
     {
-        system("cp empty_rsp.txt current_ranked-soccer_players.txt");
+        if(ServerConfig::m_super_mp_quali) system("cp empty_rsp.txt current_super_mp_quali_players.txt");
+	else system("cp empty_rsp.txt current_ranked-soccer_players.txt");
         int elo = 1500;
         std::string msg = "";
         for (auto peer_rdy : m_peers_ready)
@@ -3205,10 +3230,22 @@ void ServerLobby::startSelection(const Event *event)
                 for (auto player : peer->getPlayerProfiles())
                 {
                     std::string username = StringUtils::wideToUtf8(player->getName());
+		    if (ServerConfig::m_super_mp_quali)
+		    {
+		        bool found=false;
+			auto quali_players= StringUtils::split(ServerConfig::m_super_mp_quali_players,' ');
+			for (int i=0;i<quali_players.size();i++)
+			{
+			    if(username==quali_players[i]) found=true;
+			}
+			if(!found)
+			{
+			    player->setTeam(KART_TEAM_NONE);
+		            continue;
+			}
+		    }
                     elo = getPlayerElo(username);
                     m_soccer_ranked_players.push_back(std::pair<std::string, int>(username, elo));
-                    //player->setTeam(KART_TEAM_RED);
-
                     msg = "Player " + username + " is in the coming ranked soccer match.";
                     Log::info("ServerLobby", msg.c_str());
                 }
@@ -4852,6 +4889,21 @@ void ServerLobby::handleUnencryptedConnection(std::shared_ptr<STKPeer> peer,
         }
         if (ServerConfig::m_rank_soccer)
         {
+	    if (ServerConfig::m_super_mp_quali)
+	    {
+	        bool found=false;
+		auto quali_players=StringUtils::split(ServerConfig::m_super_mp_quali_players,' ');
+		int i4;
+		for (i4=0;i4 < quali_players.size();i4++)
+		{
+		    if (utf8_name==quali_players[i4]) found=true;
+		}
+		if (!found)
+		{
+		    player->setTeam(KART_TEAM_NONE);
+                    peer->setAlwaysSpectate(true);
+		}
+	    }
             int i3 = 0;
             for (i3 = 0; i3 < m_soccer_ranked_teams.size(); i3++)
             {
@@ -5705,10 +5757,12 @@ void ServerLobby::finishedLoadingWorldClient(Event *event)
             case KART_TEAM_RED:
                 if (super) singdrossel = "python3 supertournament_addcurrentplayer.py " + username + " " + redname + " &";
                 if (ServerConfig::m_rank_soccer) singdrossel = "python3 add_ranked-soccer_player.py " + username + " red" + " &";
+                if (ServerConfig::m_super_mp_quali) singdrossel = "python3 add_super_mp_quali_player.py " + username + " red" + " &";
                 break;
             case KART_TEAM_BLUE:
                 if (super) singdrossel = "python3 supertournament_addcurrentplayer.py " + username + " " + bluename + " &";
                 if (ServerConfig::m_rank_soccer) singdrossel = "python3 add_ranked-soccer_player.py " + username + " blue" + " &";
+                if (ServerConfig::m_super_mp_quali) singdrossel = "python3 add_super_mp_quali_player.py " + username + " blue" + " &";
                 break;
             default:
                 break;
@@ -10010,8 +10064,9 @@ int ServerLobby::getPlayerElo(std::string username) const
     {
         // TODO: It's nonsense to read the elos from the database right here.
         //       Better read the elos after each game and store them in a global variable.
-        std::string fileName = ServerConfig::m_rank_1vs1 ? "game_stat_1vs1.txt" : "soccer_ranking.txt";
-
+        std::string fileName = "game_stat_1vs1.txt";
+	if (ServerConfig::m_rank_soccer) fileName="soccer_ranking.txt";
+	if (ServerConfig::m_super_mp_quali) fileName="supertournament_mp_quali_ranking.txt";
         std::ifstream in_file(fileName);
         int elo = 0;
         std::string player = "";
