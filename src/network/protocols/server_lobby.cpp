@@ -2788,7 +2788,9 @@ void ServerLobby::update(int ticks)
         if (ServerConfig::m_rank_soccer)
         {
             std::string singdrossel = "python3 update_elo_ranked-soccer-DB.py " + std::to_string(ServerConfig::m_spielzeit);
-            if (ServerConfig::m_super_mp_quali) singdrossel = "python3 update_elo_super_mp_quali.py " + std::to_string(ServerConfig::m_spielzeit);
+            if (ServerConfig::m_super_mp_quali && ServerConfig::m_mpq2 && !(ServerConfig::m_skip_end)) singdrossel = "python3 update_elo_super_mp_quali2.py " + std::to_string(ServerConfig::m_spielzeit);
+	    else if (ServerConfig::m_super_mp_quali && !(ServerConfig::m_skip_end)) singdrossel = "python3 update_elo_super_mp_quali.py " + std::to_string(ServerConfig::m_spielzeit);
+	    if (ServerConfig::m_super_mp_quali) ServerConfig::m_skip_end=false;
             system(singdrossel.c_str());
         }
 
@@ -2797,12 +2799,16 @@ void ServerLobby::update(int ticks)
             if (ServerConfig::m_rank_1vs1 || ServerConfig::m_rank_1vs1_2 || ServerConfig::m_rank_1vs1_3) system("python3 update_wiki.py 1vs1 &");
             else system("python3 update_wiki.py 3vs3 &");
         }
-	if (ServerConfig::m_super_tournament && ServerConfig::m_count_supertournament_game && !(ServerConfig::m_skip_end))
+	if (ServerConfig::m_super_tournament && ServerConfig::m_count_supertournament_game)
         {
             std::string redname=ServerConfig::m_red_team_name;
             std::string bluename=ServerConfig::m_blue_team_name;
-            std::string singdrossel="python3 supertournament_gameresult.py "+redname+' '+bluename;
-            system(singdrossel.c_str());
+	    if (!(ServerConfig::m_skip_end))
+	    {
+                std::string singdrossel="python3 supertournament_gameresult.py "+redname+' '+bluename;
+                system(singdrossel.c_str());
+	    }
+	    ServerConfig::m_skip_end=false;
         }
         if (ServerConfig::m_rank_soccer)
         {
@@ -3218,7 +3224,8 @@ void ServerLobby::startSelection(const Event *event)
 
     if (ServerConfig::m_rank_soccer)
     {
-        if(ServerConfig::m_super_mp_quali) system("cp empty_rsp.txt current_super_mp_quali_players.txt");
+        if(ServerConfig::m_super_mp_quali && ServerConfig::m_mpq2) system("cp empty_rsp.txt current_super_mp_quali_players2.txt");
+	else if(ServerConfig::m_super_mp_quali) system("cp empty_rsp.txt current_super_mp_quali_players.txt");
 	else system("cp empty_rsp.txt current_ranked-soccer_players.txt");
         int elo = 1500;
         std::string msg = "";
@@ -5150,6 +5157,7 @@ void ServerLobby::updatePlayerList(bool update_when_reset_server)
                         peer->setAlwaysSpectate(true);
                 }
             }
+	  
             else
             {
                 for (auto& peer : peers)
@@ -5757,12 +5765,14 @@ void ServerLobby::finishedLoadingWorldClient(Event *event)
             case KART_TEAM_RED:
                 if (super) singdrossel = "python3 supertournament_addcurrentplayer.py " + username + " " + redname + " &";
                 if (ServerConfig::m_rank_soccer) singdrossel = "python3 add_ranked-soccer_player.py " + username + " red" + " &";
-                if (ServerConfig::m_super_mp_quali) singdrossel = "python3 add_super_mp_quali_player.py " + username + " red" + " &";
+                if (ServerConfig::m_super_mp_quali && ServerConfig::m_mpq2) singdrossel = "python3 add_super_mp_quali_player2.py " + username + " red" + " &";
+		else if (ServerConfig::m_super_mp_quali) singdrossel = "python3 add_super_mp_quali_player.py " + username + " red" + " &";
                 break;
             case KART_TEAM_BLUE:
                 if (super) singdrossel = "python3 supertournament_addcurrentplayer.py " + username + " " + bluename + " &";
                 if (ServerConfig::m_rank_soccer) singdrossel = "python3 add_ranked-soccer_player.py " + username + " blue" + " &";
-                if (ServerConfig::m_super_mp_quali) singdrossel = "python3 add_super_mp_quali_player.py " + username + " blue" + " &";
+                if (ServerConfig::m_super_mp_quali && ServerConfig::m_mpq2) singdrossel = "python3 add_super_mp_quali_player2.py " + username + " blue" + " &";
+		else if (ServerConfig::m_super_mp_quali) singdrossel = "python3 add_super_mp_quali_player.py " + username + " blue" + " &";
                 break;
             default:
                 break;
@@ -8208,7 +8218,7 @@ void ServerLobby::handleServerCommand(Event* event,
             }
         }
     }
-    if (ServerConfig::m_super_tournament || ServerConfig::m_super_tournament_qualification)
+    if (ServerConfig::m_super_tournament || ServerConfig::m_super_tournament_qualification || ServerConfig::m_super_mp_quali)
     {
         std::string peer_username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
         if (argv[0] == "join")
@@ -8222,7 +8232,7 @@ void ServerLobby::handleServerCommand(Event* event,
         {
             if (argv.size() == 1)
             {
-                std::string msg = "None good - u wrong use command";
+                std::string msg = "Format: /ican(t) [time]";
                 sendStringToPeer(msg, peer);
                 return;
             }
@@ -8418,7 +8428,7 @@ void ServerLobby::handleServerCommand(Event* event,
 
     if (ServerConfig::m_super_tournament_qualification)
     {
-        if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)))
+        if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)) && argv[0]!="join" && argv[0]!="ican" && argv[0]!="icant")
         {
             std::string msg = "You are not a referee";
             sendStringToPeer(msg, peer);
@@ -8703,6 +8713,162 @@ void ServerLobby::handleServerCommand(Event* event,
                 m_tournament_referees.erase(username);
         }
     }
+    if (ServerConfig::m_super_mp_quali)
+    {
+        if (m_tournament_referees.count(peer_username) == 0 && !(isVIP(peer)) && argv[0]!="join" && argv[0]!="ican" && argv[0]!="icant")
+        {
+            std::string msg = "You are not a referee";
+            sendStringToPeer(msg, peer);
+            return;
+        }
+	if (argv[0] == "lobby")
+        {
+	    ServerConfig::m_skip_end = true;
+            World* w = World::getWorld();
+            if (!w)
+                return;
+            SoccerWorld *sw = dynamic_cast<SoccerWorld*>(w);
+            sw->allToLobby();
+            std::string msg = "The game will be restarted or continued.";
+            sendStringToAllPeers(msg);
+        }
+	if (argv[0] == "end")
+        {
+            World* w = World::getWorld();
+            if (!w)
+                return;
+            SoccerWorld *sw = dynamic_cast<SoccerWorld*>(w);
+            sw->allToLobby();
+            std::string msg = "The game will be restarted or continued.";
+            sendStringToAllPeers(msg);
+        }
+	else if (argv[0] == "role")
+        {
+            if (argv.size() != 3 || (argv[2] != "j" && argv[2] != "p"))
+            {
+                std::string msg = "Format: /role player_name {j, p}";
+                sendStringToPeer(msg, peer);
+                return;
+            }
+            std::string username = argv[1];
+            if (argv[2] == "j")
+                m_tournament_referees.insert(username);
+            if (argv[2] == "p")
+                m_tournament_referees.erase(username);
+        }
+	else if (argv[0] == "stop")
+        {
+            World* w = World::getWorld();
+            if (!w)
+                return;
+            SoccerWorld *sw = dynamic_cast<SoccerWorld*>(w);
+            sw->stop();
+            std::string msg = "The game is stopped.";
+            sendStringToAllPeers(msg);
+        }
+	else if (argv[0] == "go" || argv[0] == "play" || argv[0] == "resume")
+        {
+            World* w = World::getWorld();
+            if (!w)
+                return;
+            SoccerWorld *sw = dynamic_cast<SoccerWorld*>(w);
+            sw->resume();
+            std::string msg = "The game is resumed.";
+            sendStringToAllPeers(msg);
+        }
+	else if(argv[0] == "mpq-add")
+	{
+            if (argv.size() != 2)
+            {
+                std::string msg = "Format: /mpq-add player_name";
+                sendStringToPeer(msg, peer);
+                return;
+            }
+	    std::string pname=argv[1];
+	    std::string tmp_str=ServerConfig::m_super_mp_quali_players;
+	    if (tmp_str == "") ServerConfig::m_super_mp_quali_players = tmp_str + pname;
+	    else ServerConfig::m_super_mp_quali_players = tmp_str +  " " + pname;
+            auto peers = STKHost::get()->getPeers();
+            auto quali_players=StringUtils::split(ServerConfig::m_super_mp_quali_players,' ');
+            for (auto peer : peers)
+            {
+                std::string username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
+		bool found = false;
+                int i4;
+                for (i4=0;i4 < quali_players.size();i4++)
+                {
+                    if (username==quali_players[i4]) found=true;
+                }
+                if (found)
+                    peer->setAlwaysSpectate(false);
+                else
+                    peer->setAlwaysSpectate(true);
+            }
+	    updatePlayerList();
+	}
+	else if(argv[0] == "mpq-rem")
+        {
+            if (argv.size() != 2)
+            {
+                std::string msg = "Format: /mpq-rem player_name";
+                sendStringToPeer(msg, peer);
+                return;
+            }
+            std::string pname=argv[1];
+            auto quali_players=StringUtils::split(ServerConfig::m_super_mp_quali_players,' ');
+            bool found = false;
+            int i4;
+	    std::string tmp_str="";
+            for (i4=0;i4 < quali_players.size();i4++)
+            {
+                if (pname==quali_players[i4])
+		{
+		    found=true;
+		    continue;
+	        }
+		if (i4==0) tmp_str += quali_players[i4] ;
+		else tmp_str += " "+quali_players[i4];
+            }
+	    if (!found) return;
+	    ServerConfig::m_super_mp_quali_players = tmp_str;
+            auto peers = STKHost::get()->getPeers();
+            quali_players=StringUtils::split(ServerConfig::m_super_mp_quali_players,' ');
+            for (auto peer : peers)
+            {
+                std::string username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
+                found = false;
+                for (i4=0;i4 < quali_players.size();i4++)
+                {
+                    if (username==quali_players[i4]) found=true;
+                }
+                if (found)
+                    peer->setAlwaysSpectate(false);
+                else
+                    peer->setAlwaysSpectate(true);
+            }
+	    updatePlayerList();
+        }
+	else if (argv[0] == "mpq-clear")
+	{
+            ServerConfig::m_super_mp_quali_players = "";
+            auto peers = STKHost::get()->getPeers();
+            auto quali_players=StringUtils::split(ServerConfig::m_super_mp_quali_players,' ');
+            for (auto peer : peers)
+            {
+                std::string username = StringUtils::wideToUtf8(peer->getPlayerProfiles()[0]->getName());
+	        bool found = false;
+                for (int i4=0;i4 < quali_players.size();i4++)
+                {
+                    if (username==quali_players[i4]) found=true;
+                }
+                if (found)
+                    peer->setAlwaysSpectate(false);
+                else
+                    peer->setAlwaysSpectate(true);	
+            }
+	    updatePlayerList();
+	}
+    }
 
     if (ServerConfig::m_soccer_tournament)
     {
@@ -8876,6 +9042,17 @@ void ServerLobby::handleServerCommand(Event* event,
             sendStringToAllPeers(msg);
         }
         else if (argv[0] == "lobby")
+        {
+	    ServerConfig::m_skip_end = true;
+            World* w = World::getWorld();
+            if (!w)
+                return;
+            SoccerWorld *sw = dynamic_cast<SoccerWorld*>(w);
+            sw->allToLobby();
+            std::string msg = "The game will be restarted or continued.";
+            sendStringToAllPeers(msg);
+        }
+	else if (argv[0] == "end")
         {
             World* w = World::getWorld();
             if (!w)

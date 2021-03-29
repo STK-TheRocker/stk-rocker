@@ -610,7 +610,8 @@ void SoccerWorld::onCheckGoalTriggered(bool first_goal)
 		       	else if (ServerConfig::m_rank_soccer)
                         {
                             std::string singdrossel="python3 current_ranked-soccer_players_update_goals.py "+player_name+" 0 &";
-                            if (ServerConfig::m_super_mp_quali) singdrossel="python3 current_super_mp_quali_players_update_goals.py "+player_name+" 0 &";
+                            if (ServerConfig::m_super_mp_quali && ServerConfig::m_mpq2) singdrossel="python3 current_super_mp_quali_players_update_goals2.py "+player_name+" 0 &";
+			    else if (ServerConfig::m_super_mp_quali) singdrossel="python3 current_super_mp_quali_players_update_goals.py "+player_name+" 0 &";
                             system(singdrossel.c_str());
                         }
                         if (ServerConfig::m_super_tournament && ServerConfig::m_count_supertournament_game)
@@ -669,6 +670,13 @@ void SoccerWorld::onCheckGoalTriggered(bool first_goal)
                     else if (ServerConfig::m_rank_1vs1_3)
                     {
                         std::string singdrossel="python3 current_1vs1_players_update_goals.py "+player_name+" 1vs1_3 own_goal &";
+                        system(singdrossel.c_str());
+                    }
+		    else if (ServerConfig::m_rank_soccer)
+                    {
+                        std::string singdrossel="python3 current_ranked-soccer_players_update_goals.py "+player_name+" own_goal &";
+                        if (ServerConfig::m_super_mp_quali && ServerConfig::m_mpq2) singdrossel="python3 current_super_mp_quali_players_update_goals2.py "+player_name+" own_goal &";
+			else if (ServerConfig::m_super_mp_quali) singdrossel="python3 current_super_mp_quali_players_update_goals.py "+player_name+" own_goal &";
                         system(singdrossel.c_str());
                     }
                     m_karts[sd.m_id]->getKartModel()
